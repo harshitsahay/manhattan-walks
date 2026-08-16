@@ -19,6 +19,7 @@ if (delErr) {
 
 const rows = walks.map((w) => ({
   walked_on: w.date || null,
+  walker: w.walker || null,
   note: w.note || null,
   covered_edges: w.covered_edges,
   polyline: w.polyline,

@@ -2,9 +2,10 @@
 
 Outputs (written to data/):
   streets.json        compact street network: [{id, name, len_m, coords:[[lat,lng],...]}]
-  historic_walks.json walks: [{route_id, date, note, walked_km, covered_edges:[...], polyline:[[lat,lng],...]}]
+  historic_walks.json walks: [{route_id, date, note, walker, walked_km, covered_edges:[...], polyline:[[lat,lng],...]}]
   stats.json          totals: edge_count, total_len_m, coverage info
 """
+import csv
 import json
 import os
 from datetime import datetime
@@ -18,6 +19,7 @@ from shapely.strtree import STRtree
 BASE = os.path.dirname(os.path.abspath(__file__))
 GPX_DIR = os.path.join(BASE, "..", "gpx_files")
 XLSX = os.path.join(BASE, "..", "master_file.xlsx")
+SHEET_CSV = os.path.join(BASE, "..", "data", "walks_sheet.csv")
 DATA_DIR = os.path.join(BASE, "..", "data")
 
 SNAP_THRESHOLD_M = 15.0  # GPS points within this distance of a street count as "on" it
@@ -119,6 +121,36 @@ def dissolve_degree2(G_proj):
     return G
 
 
+def parse_sheet():
+    """Read the Google Sheets export (data/walks_sheet.csv) -> {gpx_id: meta}.
+
+    Columns: Date (walk), Map status, GPX file ID, Comments, Desc,
+    Route comments (Harshit), Route comments (Jay), Distance (heuristic), ...
+    """
+    meta = {}
+    if not os.path.exists(SHEET_CSV):
+        print("  (no walks_sheet.csv — download from the Google Sheet, skipping)")
+        return meta
+    with open(SHEET_CSV, newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            rid = str(row.get("GPX file ID", "")).strip()
+            if not rid:
+                continue
+            date_raw = str(row.get("Date (walk)") or "").strip()
+            try:
+                date = datetime.strptime(date_raw, "%m/%d/%Y").date().isoformat()
+            except (ValueError, TypeError):
+                date = None
+            desc = str(row.get("Desc", "") or "").strip()
+            comments = str(row.get("Comments", "") or "").strip()
+            note = desc or comments or None
+            rc_h = str(row.get("Route comments (Harshit)", "") or "").strip()
+            rc_j = str(row.get("Route comments (Jay)", "") or "").strip()
+            walker = "Both" if rc_h and rc_j else ("Jay" if rc_j else "Harshit")
+            meta[rid] = {"date": date, "note": note, "walker": walker}
+    return meta
+
+
 def main():
     print("Loading Manhattan street network from OSM...")
     G, G_proj = load_graph()
@@ -151,18 +183,21 @@ def main():
     except Exception as e:
         print("  (no transformer)", e)
 
-    meta = {}
-    if os.path.exists(XLSX):
+    meta = parse_sheet()
+    if os.path.exists(XLSX):  # legacy fallback for anything missing from the sheet
         df = pd.read_excel(XLSX)
         for _, row in df.iterrows():
             rid = str(row.get("GPX file ID", "")).strip()
-            if not rid:
+            if not rid or rid in meta:
                 continue
             date = row.get("Date (walk)")
             meta[rid] = {
                 "date": str(date.date()) if isinstance(date, datetime) else None,
                 "note": str(row.get("Comments", "")).strip() or None,
+                "walker": "Harshit",
             }
+    dated = sum(1 for m in meta.values() if m.get("date"))
+    print(f"  metadata for {len(meta)} walks ({dated} dated)")
 
     walks, covered_total = [], set()
     files = sorted(f for f in os.listdir(GPX_DIR) if f.endswith(".gpx"))
@@ -191,6 +226,7 @@ def main():
             "route_id": rid,
             "date": meta.get(rid, {}).get("date"),
             "note": meta.get(rid, {}).get("note"),
+            "walker": meta.get(rid, {}).get("walker") or "Harshit",
             "walked_km": round(walked_km, 2),
             "covered_edges": sorted(covered),
             "polyline": polyline,

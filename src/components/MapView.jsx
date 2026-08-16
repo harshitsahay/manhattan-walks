@@ -1,11 +1,15 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
+import { Tag } from 'lucide-react'
 import ErrorBoundary from './ErrorBoundary'
+import SearchBox from './SearchBox'
 import { getSegment, getStreetFeatures } from '../lib/streets'
+import { loadPlaces, PLACE_COLORS } from '../lib/places'
 
 const MANHATTAN_BOUNDS = [[-74.06, 40.68], [-73.88, 40.88]]
 const MAP_STYLE = {
   version: 8,
+  glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
   sources: {
     basemap: {
       type: 'raster',
@@ -22,11 +26,23 @@ const MAP_STYLE = {
 const toLngLat = (coords) => coords.map(([lat, lng]) => [lng, lat])
 const noMatchFilter = ['==', ['get', 'id'], '']
 
-export function MapCanvas({ streetsReady, coveredIds, draftIds, walks, mode, onMapClick }) {
+const POI_COLOR = ['match', ['get', 'type'],
+  'park', PLACE_COLORS.park,
+  'food', PLACE_COLORS.food,
+  'museum', PLACE_COLORS.museum,
+  'culture', PLACE_COLORS.culture,
+  'education', PLACE_COLORS.education,
+  'landmark', PLACE_COLORS.landmark,
+  'transport', PLACE_COLORS.transport,
+  '#b8beca']
+
+function MapCanvas({ streetsReady, coveredIds, draftIds, walks, mode, onMapClick }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const callbacksRef = useRef({ onMapClick, mode })
   callbacksRef.current = { onMapClick, mode }
+  const [placesOn, setPlacesOn] = useState(false)
+  const placesOnRef = useRef(false)
 
   useEffect(() => {
     const map = new maplibregl.Map({
@@ -105,6 +121,84 @@ export function MapCanvas({ streetsReady, coveredIds, draftIds, walks, mode, onM
     map.setLayoutProperty('draft', 'line-cap', 'round')
   }, [streetsReady])
 
+  const ensurePlaces = useRef(async (map) => {
+    if (map.getSource('places')) return
+    const data = await loadPlaces()
+    const nhoodFeatures = data.neighborhoods.map((n) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [n.lng, n.lat] },
+      properties: { name: n.name },
+    }))
+    const poiFeatures = data.landmarks.map((p) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+      properties: { name: p.name, type: p.type },
+    }))
+    map.addSource('places-nhood', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: nhoodFeatures },
+    })
+    map.addSource('places-poi', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: poiFeatures },
+    })
+    map.addLayer({
+      id: 'places-nhood-label', type: 'symbol', source: 'places-nhood',
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-size': 10.5,
+        'text-font': ['Open Sans Semibold'],
+        'text-letter-spacing': 0.03,
+      },
+      paint: {
+        'text-color': '#a7afc2',
+        'text-halo-color': 'rgba(17,20,28,0.9)',
+        'text-halo-width': 1.6,
+      },
+    })
+    map.addLayer({
+      id: 'places-poi-dot', type: 'circle', source: 'places-poi',
+      paint: {
+        'circle-color': POI_COLOR,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 2.5, 14, 4],
+        'circle-stroke-color': '#14181f',
+        'circle-stroke-width': 1.2,
+      },
+    })
+    map.addLayer({
+      id: 'places-poi-label', type: 'symbol', source: 'places-poi',
+      layout: {
+        'text-field': ['get', 'name'],
+        'text-size': 10.5,
+        'text-font': ['Open Sans Regular'],
+        'text-offset': [0, 1.1],
+        'text-anchor': 'top',
+      },
+      paint: {
+        'text-color': PLACE_COLORS.landmark,
+        'text-halo-color': 'rgba(17,20,28,0.9)',
+        'text-halo-width': 1.4,
+      },
+    })
+  })
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    if (placesOn && !placesOnRef.current) {
+      placesOnRef.current = true
+      ensurePlaces.current(map).catch(() => {})
+    } else if (!placesOn && placesOnRef.current) {
+      placesOnRef.current = false
+      for (const l of ['places-nhood-label', 'places-poi-dot', 'places-poi-label']) {
+        if (map.getLayer(l)) map.removeLayer(l)
+      }
+      for (const s of ['places-nhood', 'places-poi']) {
+        if (map.getSource(s)) map.removeSource(s)
+      }
+    }
+  }, [placesOn])
+
   useEffect(() => {
     const map = mapRef.current
     if (!map || !map.getLayer('streets-covered')) return
@@ -151,7 +245,23 @@ export function MapCanvas({ streetsReady, coveredIds, draftIds, walks, mode, onM
     map.getSource('routes').setData({ type: 'FeatureCollection', features })
   }, [walks])
 
-  return <div ref={containerRef} className="map-canvas" />
+  const flyTo = (lng, lat, zoom = 14.5) => {
+    mapRef.current?.flyTo({ center: [lng, lat], zoom, duration: 900 })
+  }
+
+  return (
+    <div className="map-wrap">
+      <div ref={containerRef} className="map-canvas" />
+      <SearchBox onSelect={flyTo} />
+      <button
+        className={`places-toggle${placesOn ? ' active' : ''}`}
+        onClick={() => setPlacesOn((v) => !v)}
+        title="Show places & neighborhoods"
+      >
+        <Tag size={15} /> Places
+      </button>
+    </div>
+  )
 }
 
 export default function MapView(props) {

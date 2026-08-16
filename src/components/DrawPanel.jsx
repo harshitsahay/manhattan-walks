@@ -3,13 +3,17 @@ import { Trash2, Undo2, X, Upload, MapPin, Check } from 'lucide-react'
 
 function fmtDate(iso) {
   if (!iso) return 'date unknown'
-  const d = new Date(iso)
+  const d = new Date(iso + (iso.length === 10 ? 'T00:00:00' : ''))
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
+
+const WALKERS = ['Harshit', 'Jay']
+const WALKER_COLORS = { Harshit: '#ff9f1c', Jay: '#8ad6bf' }
 
 export default function DrawPanel({ draftIds, onUndo, onClear, onSave, onImportGpx, onCancel }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [note, setNote] = useState('')
+  const [walker, setWalker] = useState('Harshit')
   const [saving, setSaving] = useState(false)
   const fileRef = useRef(null)
 
@@ -17,7 +21,7 @@ export default function DrawPanel({ draftIds, onUndo, onClear, onSave, onImportG
     if (!draftIds.length) return
     setSaving(true)
     try {
-      await onSave({ walked_on: date, note: note.trim() || null })
+      await onSave({ walked_on: date, note: note.trim() || null, walker })
       setNote('')
     } finally {
       setSaving(false)
@@ -41,6 +45,20 @@ export default function DrawPanel({ draftIds, onUndo, onClear, onSave, onImportG
       <div className="draw-controls">
         <button className="btn ghost" onClick={onUndo} disabled={!draftIds.length}><Undo2 size={15} /> Undo</button>
         <button className="btn ghost" onClick={onClear} disabled={!draftIds.length}><X size={15} /> Clear</button>
+      </div>
+      <div className="segmented" role="radiogroup" aria-label="Who is logging this walk">
+        {WALKERS.map((w) => (
+          <button
+            key={w}
+            role="radio"
+            aria-checked={walker === w}
+            className={`segmented-btn${walker === w ? ' active' : ''}`}
+            style={walker === w ? { color: WALKER_COLORS[w] } : undefined}
+            onClick={() => setWalker(w)}
+          >
+            {w}
+          </button>
+        ))}
       </div>
       <input className="field" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       <textarea
@@ -66,15 +84,20 @@ export function WalksList({ walks, onDelete, onStartDraw }) {
   return (
     <div className="walks-list">
       <div className="walks-head">
-        <span>Walk history</span>
+        <span>Recent walks</span>
         <button className="btn primary small" onClick={onStartDraw}><MapPin size={14} /> Log a walk</button>
       </div>
       {walks.length === 0 && <p className="walks-empty">No walks logged yet.</p>}
-      {walks.map((w) => (
+      {walks.slice(0, 12).map((w) => (
         <div className="walk-row" key={w.id}>
           <div className="walk-row-main">
             <div className="walk-row-title">
               <span>{fmtDate(w.walked_on)}</span>
+              {w.walker && (
+                <span className="walker-chip" style={{ color: WALKER_COLORS[w.walker] || '#cfd6e4' }}>
+                  {w.walker}
+                </span>
+              )}
               <span className="walk-row-km">{w.walked_km != null ? `${w.walked_km.toFixed(2)} km` : ''}</span>
             </div>
             {w.note && <div className="walk-row-note">{w.note}</div>}

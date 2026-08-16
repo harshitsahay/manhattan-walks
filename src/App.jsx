@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { fetchWalks, insertWalk, deleteWalk, supabase } from './lib/supabase'
+import { Map as MapIcon, History, Footprints } from 'lucide-react'
+import { fetchWalks, insertWalk, deleteWalk } from './lib/supabase'
 import { SUPABASE_URL } from './config'
 import { loadStreets, nearestSegment, snapTrace, getStreets, getSegment } from './lib/streets'
 import { computeStats } from './lib/stats'
@@ -7,12 +8,14 @@ import { importGpxFile } from './lib/gpx'
 import MapView from './components/MapView'
 import StatsPanel from './components/StatsPanel'
 import DrawPanel, { WalksList } from './components/DrawPanel'
+import HistoryPage from './components/HistoryPage'
 
 export default function App() {
   const [streetsReady, setStreetsReady] = useState(false)
   const [walks, setWalks] = useState([])
   const [draftIds, setDraftIds] = useState([])
   const [mode, setMode] = useState('view')
+  const [page, setPage] = useState('map')
   const [importedKm, setImportedKm] = useState(0)
   const [importedPolyline, setImportedPolyline] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -43,7 +46,8 @@ export default function App() {
     return set
   }, [walks])
 
-  const stats = useMemo(() => computeStats(getStreets() || [], coveredIds, walks), [walks, coveredIds])
+  const streets = getStreets() || []
+  const stats = useMemo(() => computeStats(streets, coveredIds, walks), [streets, coveredIds, walks])
 
   const handleMapClick = useCallback((lng, lat, radius) => {
     const hit = nearestSegment(lng, lat, radius)
@@ -60,7 +64,7 @@ export default function App() {
   }
   const handleCancel = handleClear
 
-  const handleSave = async ({ walked_on, note }) => {
+  const handleSave = async ({ walked_on, note, walker }) => {
     const segKm = draftIds.reduce((acc, id) => acc + (getSegment(id)?.len_m || 0), 0) / 1000
     const walkedKm = importedKm + segKm
     let polyline
@@ -76,6 +80,7 @@ export default function App() {
     const saved = await insertWalk({
       walked_on,
       note,
+      walker: walker || 'Harshit',
       walked_km: Math.round(walkedKm * 100) / 100,
       covered_edges: draftIds,
       polyline,
@@ -117,6 +122,24 @@ export default function App() {
           <p className="masthead-kicker">Every street, one block at a time</p>
           <h1>Manhattan</h1>
         </div>
+        <div className="segmented header-tabs" role="tablist">
+          <button
+            role="tab"
+            aria-selected={page === 'map'}
+            className={`segmented-btn${page === 'map' ? ' active' : ''}`}
+            onClick={() => setPage('map')}
+          >
+            <MapIcon size={14} /> Map
+          </button>
+          <button
+            role="tab"
+            aria-selected={page === 'history'}
+            className={`segmented-btn${page === 'history' ? ' active' : ''}`}
+            onClick={() => setPage('history')}
+          >
+            <History size={14} /> History
+          </button>
+        </div>
         <div className="header-stats">
           <div className="header-badge">{loading ? '…' : `${stats.pct.toFixed(1)}%`}</div>
           <span>covered</span>
@@ -124,6 +147,15 @@ export default function App() {
       </header>
 
       {error && <div className="error-banner">{error}</div>}
+      {!SUPABASE_URL && (
+        <div className="error-banner">Supabase not configured — add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.</div>
+      )}
+
+      {page === 'history' && (
+        <div className="history-overlay">
+          <HistoryPage walks={walks} onDelete={handleDelete} onBack={() => setPage('map')} />
+        </div>
+      )}
 
       <div className="layout">
         <aside className="sidebar">
@@ -137,7 +169,7 @@ export default function App() {
               onImportGpx={handleImportGpx}
             />
           ) : (
-            <StatsPanel stats={stats} draftCount={draftIds.length} />
+            <StatsPanel stats={stats} walks={walks} streets={streets} draftCount={draftIds.length} />
           )}
           {mode === 'view' && (
             <WalksList walks={walks} onDelete={handleDelete} onStartDraw={() => setMode('draw')} />
@@ -152,8 +184,11 @@ export default function App() {
           onMapClick={handleMapClick}
         />
       </div>
-      {!SUPABASE_URL && (
-        <div className="error-banner">Supabase not configured — add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.</div>
+
+      {page === 'map' && mode === 'view' && (
+        <button className="fab" onClick={() => setMode('draw')}>
+          <Footprints size={18} /> Log a walk
+        </button>
       )}
     </div>
   )
