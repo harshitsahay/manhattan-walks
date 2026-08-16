@@ -10,7 +10,7 @@ function fmtDate(iso) {
 const WALKERS = ['Harshit', 'Jay']
 const WALKER_COLORS = { Harshit: '#ff9f1c', Jay: '#8ad6bf' }
 
-export default function DrawPanel({ draftIds, drawStart, drawError, onUndo, onClear, onSave, onImportGpx, onCancel }) {
+export default function DrawPanel({ draftIds, draftCount, drawStart, drawError, onUndo, onClear, onSave, onImportGpx, onCancel }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [note, setNote] = useState('')
   const [walker, setWalker] = useState('Harshit')
@@ -44,8 +44,14 @@ export default function DrawPanel({ draftIds, drawStart, drawError, onUndo, onCl
       {drawStart && <div className="draw-start-status"><MapPin size={13} /> Start locked — tap the end point</div>}
       {drawError && <div className="draw-error">{drawError}</div>}
       <div className="draw-count">
-        <span className="draw-count-num">{draftIds.length}</span> block{draftIds.length === 1 ? '' : 's'} marked
+        <span className="draw-count-num">{draftCount}</span> block{draftCount === 1 ? '' : 's'} fully covered
+        {draftIds.length > draftCount && (
+          <span className="draw-count-note"> · {draftIds.length - draftCount} partial block{draftIds.length - draftCount === 1 ? '' : 's'} skipped</span>
+        )}
       </div>
+      <p className="draw-hint">
+        A block counts only when the whole block was walked — partial start/end blocks are skipped.
+      </p>
       <div className="draw-controls">
         <button className="btn ghost" onClick={onUndo} disabled={!draftIds.length}><Undo2 size={15} /> Undo</button>
         <button className="btn ghost" onClick={onClear} disabled={!draftIds.length}><X size={15} /> Clear</button>

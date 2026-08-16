@@ -157,6 +157,23 @@ function nearestNode(graph, hit) {
   return d0 <= d1 ? graph.segNode[s.id].a : graph.segNode[s.id].b
 }
 
+/** True if the click is within `junctionM` meters of a segment endpoint (an intersection). */
+function isAtJunction(hit, junctionM = 25) {
+  const [pLng, pLat] = hit.point
+  const s = hit.segment
+  const d0 = turf.distance(
+    turf.point([s.coords[0][1], s.coords[0][0]]),
+    turf.point([pLng, pLat]),
+    { units: 'meters' },
+  )
+  const d1 = turf.distance(
+    turf.point([s.coords[s.coords.length - 1][1], s.coords[s.coords.length - 1][0]]),
+    turf.point([pLng, pLat]),
+    { units: 'meters' },
+  )
+  return d0 <= junctionM || d1 <= junctionM
+}
+
 function dijkstra(graph, start, goal) {
   const { adj, coords } = graph
   const n = coords.length
@@ -210,7 +227,9 @@ function pathCoords(ids) {
   return out
 }
 
-/** Route along the street network between two clicked points. */
+/** Route along the street network between two clicked points.
+ *  `ids` = full path marked on the map (may include partial end blocks);
+ *  `fullIds` = only blocks fully covered end-to-end (partial start/end blocks skipped). */
 export function routeBetween(lngA, latA, lngB, latB, radiusM = 60) {
   const graph = ensureRouteGraph()
   if (!graph) return null
@@ -218,11 +237,28 @@ export function routeBetween(lngA, latA, lngB, latB, radiusM = 60) {
   const b = nearestSegment(lngB, latB, radiusM)
   if (!a || !b) return null
   if (a.segment.id === b.segment.id) {
-    return { ids: [a.segment.id], coords: pathCoords([a.segment.id]) }
+    const full = isAtJunction(a) && isAtJunction(b)
+    const id = a.segment.id
+    return { ids: [id], coords: pathCoords([id]), fullIds: full ? [id] : [] }
   }
   const start = nearestNode(graph, a)
   const goal = nearestNode(graph, b)
+  if (start === goal) {
+    const seen = new Set()
+    const ids = []
+    const fullIds = []
+    for (const [hit, id] of [[a, a.segment.id], [b, b.segment.id]]) {
+      if (seen.has(id)) continue
+      seen.add(id)
+      ids.push(id)
+      if (isAtJunction(hit)) fullIds.push(id)
+    }
+    return { ids, coords: pathCoords(ids), fullIds }
+  }
   const ids = dijkstra(graph, start, goal)
   if (!ids || !ids.length) return null
-  return { ids, coords: pathCoords(ids) }
+  const fullIds = [...ids]
+  if (ids[0] === a.segment.id && !isAtJunction(a)) fullIds.shift()
+  if (ids[ids.length - 1] === b.segment.id && !isAtJunction(b)) fullIds.pop()
+  return { ids, coords: pathCoords(ids), fullIds }
 }

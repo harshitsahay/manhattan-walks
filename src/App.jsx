@@ -13,7 +13,7 @@ import HistoryPage from './components/HistoryPage'
 export default function App() {
   const [streetsReady, setStreetsReady] = useState(false)
   const [walks, setWalks] = useState([])
-  const [draftIds, setDraftIds] = useState([])
+  const [draftRoutes, setDraftRoutes] = useState([])
   const [drawStart, setDrawStart] = useState(null)
   const [drawError, setDrawError] = useState(null)
   const [mode, setMode] = useState('view')
@@ -48,6 +48,19 @@ export default function App() {
     return set
   }, [walks])
 
+  const draftIds = useMemo(() => {
+    const seen = new Set()
+    const out = []
+    for (const r of draftRoutes) for (const id of r.ids) if (!seen.has(id)) { seen.add(id); out.push(id) }
+    return out
+  }, [draftRoutes])
+
+  const draftFullIds = useMemo(() => {
+    const seen = new Set()
+    for (const r of draftRoutes) for (const id of r.fullIds) seen.add(id)
+    return [...seen]
+  }, [draftRoutes])
+
   const streets = getStreets() || []
   const stats = useMemo(() => computeStats(streets, coveredIds, walks), [streets, coveredIds, walks])
 
@@ -66,18 +79,14 @@ export default function App() {
       setDrawError('Could not route there — tap closer to a street')
       return
     }
-    setDraftIds((prev) => {
-      const have = new Set(prev)
-      const add = route.ids.filter((id) => !have.has(id))
-      return add.length ? [...prev, ...add] : prev
-    })
+    setDraftRoutes((prev) => [...prev, { ids: route.ids, fullIds: route.fullIds }])
     setDrawStart(null)
     setDrawError(null)
   }, [drawStart])
 
-  const handleUndo = () => setDraftIds((prev) => prev.slice(0, -1))
+  const handleUndo = () => setDraftRoutes((prev) => prev.slice(0, -1))
   const handleClear = () => {
-    setDraftIds([])
+    setDraftRoutes([])
     setImportedKm(0)
     setImportedPolyline(null)
     setDrawStart(null)
@@ -108,11 +117,11 @@ export default function App() {
       note,
       walker: walker || 'Harshit',
       walked_km: Math.round(walkedKm * 100) / 100,
-      covered_edges: draftIds,
+      covered_edges: draftFullIds,
       polyline,
     })
     setWalks((prev) => [saved, ...prev])
-    setDraftIds([])
+    setDraftRoutes([])
     setImportedKm(0)
     setImportedPolyline(null)
     setDrawStart(null)
@@ -126,7 +135,7 @@ export default function App() {
       const { ids } = snapTrace(points, 15)
       setImportedKm(walked_km)
       setImportedPolyline(points)
-      setDraftIds(ids)
+      setDraftRoutes([{ ids, fullIds: ids }])
       setMode('draw')
       if (error) setError(null)
     } catch (e) {
@@ -190,6 +199,7 @@ export default function App() {
           {mode === 'draw' ? (
             <DrawPanel
               draftIds={draftIds}
+              draftCount={draftFullIds.length}
               drawStart={drawStart}
               drawError={drawError}
               onUndo={handleUndo}
@@ -199,7 +209,7 @@ export default function App() {
               onImportGpx={handleImportGpx}
             />
           ) : (
-            <StatsPanel stats={stats} draftCount={draftIds.length} />
+            <StatsPanel stats={stats} draftCount={draftFullIds.length} />
           )}
           {mode === 'view' && (
             <WalksList walks={walks} onDelete={handleDelete} onStartDraw={startDraw} />
