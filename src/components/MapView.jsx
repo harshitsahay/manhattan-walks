@@ -36,11 +36,12 @@ const POI_COLOR = ['match', ['get', 'type'],
   'transport', PLACE_COLORS.transport,
   '#b8beca']
 
-function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPolyline, walks, mode, onMapClick, drawStart }) {
+function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPolyline, routePoints, walks, mode, onMapClick, drawStart }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const markerRef = useRef(null)
   const searchMarkerRef = useRef(null)
+  const pointMarkersRef = useRef([])
   const callbacksRef = useRef({ onMapClick, mode })
   callbacksRef.current = { onMapClick, mode }
   const [placesOn, setPlacesOn] = useState(false)
@@ -90,6 +91,24 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPoly
       searchMarkerRef.current = null
     }
   }, [drawStart, mode])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    for (const m of pointMarkersRef.current) m.remove()
+    pointMarkersRef.current = []
+    if (mode === 'draw') {
+      for (const p of routePoints || []) {
+        const el = document.createElement('div')
+        el.className = p.kind === 'end' ? 'route-point end' : 'route-point'
+        pointMarkersRef.current.push(
+          new maplibregl.Marker({ element: el, anchor: 'center' })
+            .setLngLat([p.lng, p.lat])
+            .addTo(map),
+        )
+      }
+    }
+  }, [routePoints, mode])
 
   useEffect(() => {
     const map = mapRef.current

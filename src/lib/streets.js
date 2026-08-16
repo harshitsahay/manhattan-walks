@@ -228,7 +228,8 @@ function pathCoords(ids) {
 }
 
 /** Route along the street network between two clicked points.
- *  Returns: ids (route segments), fullIds (fully-covered segments), polyline (click-to-click coords). */
+ *  Returns: ids (route segments), fullIds (fully-covered segments), polyline (click-to-click coords),
+ *  endPoint ([lng, lat] of the snapped end position). */
 export function routeBetween(lngA, latA, lngB, latB, radiusM = 60) {
   const graph = ensureRouteGraph()
   if (!graph) return null
@@ -252,7 +253,8 @@ export function routeBetween(lngA, latA, lngB, latB, radiusM = 60) {
     const hi = Math.max(iA, iB)
     const polyline = coords.slice(lo, hi + 1)
     if (iA > iB) polyline.reverse()
-    return { ids: [id], fullIds: full ? [id] : [], polyline }
+    const endPoint = polyline[polyline.length - 1]
+    return { ids: [id], fullIds: full ? [id] : [], polyline, endPoint }
   }
   const start = nearestNode(graph, a)
   const goal = nearestNode(graph, b)
@@ -267,12 +269,12 @@ export function routeBetween(lngA, latA, lngB, latB, radiusM = 60) {
       if (isAtJunction(hit)) fullIds.push(id)
     }
     const polyline = [[lngA, latA], [lngB, latB]]
-    return { ids, fullIds, polyline }
+    return { ids, fullIds, polyline, endPoint: b.point }
   }
   const ids = dijkstra(graph, start, goal)
   if (!ids || !ids.length) return null
   const routeCoords = pathCoords(ids)
   const polyline = [[lngA, latA], ...routeCoords, [lngB, latB]]
   const fullIds = [...ids]
-  return { ids, fullIds, polyline }
+  return { ids, fullIds, polyline, endPoint: b.point }
 }

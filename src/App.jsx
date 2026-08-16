@@ -72,6 +72,15 @@ export default function App() {
     return out
   }, [draftRoutes])
 
+  const routePoints = useMemo(() => {
+    const out = []
+    for (const r of draftRoutes) {
+      if (r.start) out.push({ lng: r.start.lng, lat: r.start.lat, kind: 'start' })
+      if (r.end) out.push({ lng: r.end.lng, lat: r.end.lat, kind: 'end' })
+    }
+    return out
+  }, [draftRoutes])
+
   const streets = getStreets() || []
   const stats = useMemo(() => computeStats(streets, coveredIds, walks), [streets, coveredIds, walks])
 
@@ -90,12 +99,20 @@ export default function App() {
       setDrawError('Could not route there — tap closer to a street')
       return
     }
-    setDraftRoutes((prev) => [...prev, { ids: route.ids, fullIds: route.fullIds, polyline: route.polyline }])
-    setDrawStart(null)
+    const endPoint = { lng: route.endPoint[0], lat: route.endPoint[1] }
+    setDraftRoutes((prev) => [
+      ...prev,
+      { ids: route.ids, fullIds: route.fullIds, polyline: route.polyline, start: drawStart, end: endPoint },
+    ])
+    setDrawStart(endPoint)
     setDrawError(null)
   }, [drawStart])
 
-  const handleUndo = () => setDraftRoutes((prev) => prev.slice(0, -1))
+  const handleUndo = () => {
+    const next = draftRoutes.slice(0, -1)
+    setDraftRoutes(next)
+    setDrawStart(next.length ? next[next.length - 1].end : null)
+  }
   const handleClear = () => {
     setDraftRoutes([])
     setImportedKm(0)
@@ -223,6 +240,7 @@ export default function App() {
           draftIds={draftIds}
           draftFullIds={draftFullIds}
           draftPolyline={draftPolyline}
+          routePoints={routePoints}
           walks={walks}
           mode={mode}
           drawStart={drawStart}

@@ -446,6 +446,21 @@ body {
   box-shadow: 0 0 0 4px rgba(255, 159, 28, 0.35);
 }
 
+.route-point {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #8ad6bf;
+  border: 2px solid #160d02;
+  box-shadow: 0 0 0 3px rgba(138, 214, 191, 0.35);
+}
+
+.route-point.end {
+  background: #ffffff;
+  border-color: #160d02;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35);
+}
+
 .search-marker {
   width: 12px;
   height: 12px;

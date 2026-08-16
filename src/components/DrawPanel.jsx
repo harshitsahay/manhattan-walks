@@ -38,10 +38,17 @@ export default function DrawPanel({ draftIds, draftCount, drawStart, drawError, 
       </div>
       <p className="draw-hint">
         {drawStart
-          ? 'Start point set — tap where you ended, we route the street path between them.'
+          ? draftIds.length
+            ? 'Marker sits at your last point — tap the end of the next block to chain the route.'
+            : 'Tap your start point, then your end point — the street path between them is added.'
           : 'Tap your start point, then your end point — the street path between them is added.'}
       </p>
-      {drawStart && <div className="draw-start-status"><MapPin size={13} /> Start locked — tap the end point</div>}
+      {drawStart && (
+        <div className="draw-start-status">
+          <MapPin size={13} />
+          {draftIds.length ? 'Continue route — tap the end of the next block' : 'Start locked — tap the end point'}
+        </div>
+      )}
       {drawError && <div className="draw-error">{drawError}</div>}
       <div className="draw-count">
         <span className="draw-count-num">{draftCount}</span> block{draftCount === 1 ? '' : 's'} fully covered
