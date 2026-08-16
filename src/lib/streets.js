@@ -113,3 +113,116 @@ export function snapTrace(points, radiusM = 15) {
 export function haversineKm([lat1, lng1], [lat2, lng2]) {
   return turf.distance(turf.point([lng1, lat1]), turf.point([lng2, lat2]), { units: 'kilometers' })
 }
+
+/* ---------- street-network routing (point to point) ---------- */
+
+let routeGraph = null
+
+const nodeKey = ([lat, lng]) => `${lat.toFixed(5)},${lng.toFixed(5)}`
+
+function ensureRouteGraph() {
+  if (routeGraph || !streets) return routeGraph
+  const ids = new Map()
+  const coords = []
+  const nodesAt = (p) => {
+    const k = nodeKey(p)
+    let i = ids.get(k)
+    if (i === undefined) {
+      i = coords.length
+      ids.set(k, i)
+      coords.push([p[1], p[0]])
+    }
+    return i
+  }
+  const adj = []
+  const segNode = []
+  for (const s of streets) {
+    const a = nodesAt(s.coords[0])
+    const b = nodesAt(s.coords[s.coords.length - 1])
+    if (!adj[a]) adj[a] = []
+    if (!adj[b]) adj[b] = []
+    adj[a].push({ to: b, seg: s.id, len: s.len_m || 0 })
+    adj[b].push({ to: a, seg: s.id, len: s.len_m || 0 })
+    segNode[s.id] = { a, b }
+  }
+  routeGraph = { adj, coords, segNode, nodesAt }
+  return routeGraph
+}
+
+function nearestNode(graph, hit) {
+  const [pLng, pLat] = hit.point
+  const s = hit.segment
+  const d0 = (pLng - s.coords[0][1]) ** 2 + (pLat - s.coords[0][0]) ** 2
+  const d1 = (pLng - s.coords[s.coords.length - 1][1]) ** 2 + (pLat - s.coords[s.coords.length - 1][0]) ** 2
+  return d0 <= d1 ? graph.segNode[s.id].a : graph.segNode[s.id].b
+}
+
+function dijkstra(graph, start, goal) {
+  const { adj, coords } = graph
+  const n = coords.length
+  const dist = new Float64Array(n).fill(Infinity)
+  const prevSeg = new Array(n).fill(null)
+  const prevNode = new Array(n).fill(-1)
+  const visited = new Uint8Array(n)
+  dist[start] = 0
+  const heap = [[0, start]]
+  while (heap.length) {
+    let bi = 0
+    for (let i = 1; i < heap.length; i++) if (heap[i][0] < heap[bi][0]) bi = i
+    const [d, u] = heap.splice(bi, 1)[0]
+    if (visited[u]) continue
+    visited[u] = 1
+    if (u === goal) break
+    for (const e of adj[u] || []) {
+      const v = e.to
+      const nd = d + e.len
+      if (nd < dist[v]) {
+        dist[v] = nd
+        prevSeg[v] = e.seg
+        prevNode[v] = u
+        heap.push([nd, v])
+      }
+    }
+  }
+  if (!visited[goal]) return null
+  const ids = []
+  let cur = goal
+  while (cur !== start && prevSeg[cur] != null) {
+    ids.push(prevSeg[cur])
+    cur = prevNode[cur]
+  }
+  return ids.reverse()
+}
+
+function pathCoords(ids) {
+  const out = []
+  const prev = new Map()
+  for (const id of ids) {
+    const seg = getSegment(id)
+    if (!seg) continue
+    for (const [lat, lng] of seg.coords) {
+      const k = `${lng.toFixed(5)},${lat.toFixed(5)}`
+      if (prev.get(k)) continue
+      prev.set(k, true)
+      out.push([lng, lat])
+    }
+  }
+  return out
+}
+
+/** Route along the street network between two clicked points. */
+export function routeBetween(lngA, latA, lngB, latB, radiusM = 60) {
+  const graph = ensureRouteGraph()
+  if (!graph) return null
+  const a = nearestSegment(lngA, latA, radiusM)
+  const b = nearestSegment(lngB, latB, radiusM)
+  if (!a || !b) return null
+  if (a.segment.id === b.segment.id) {
+    return { ids: [a.segment.id], coords: pathCoords([a.segment.id]) }
+  }
+  const start = nearestNode(graph, a)
+  const goal = nearestNode(graph, b)
+  const ids = dijkstra(graph, start, goal)
+  if (!ids || !ids.length) return null
+  return { ids, coords: pathCoords(ids) }
+}

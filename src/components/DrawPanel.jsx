@@ -10,7 +10,7 @@ function fmtDate(iso) {
 const WALKERS = ['Harshit', 'Jay']
 const WALKER_COLORS = { Harshit: '#ff9f1c', Jay: '#8ad6bf' }
 
-export default function DrawPanel({ draftIds, onUndo, onClear, onSave, onImportGpx, onCancel }) {
+export default function DrawPanel({ draftIds, drawStart, drawError, onUndo, onClear, onSave, onImportGpx, onCancel }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [note, setNote] = useState('')
   const [walker, setWalker] = useState('Harshit')
@@ -37,8 +37,12 @@ export default function DrawPanel({ draftIds, onUndo, onClear, onSave, onImportG
         <button className="icon-btn" onClick={onCancel} title="Cancel"><X size={16} /></button>
       </div>
       <p className="draw-hint">
-        Click along the streets you walked. Each click snaps to the nearest street segment.
+        {drawStart
+          ? 'Start point set — tap where you ended, we route the street path between them.'
+          : 'Tap your start point, then your end point — the street path between them is added.'}
       </p>
+      {drawStart && <div className="draw-start-status"><MapPin size={13} /> Start locked — tap the end point</div>}
+      {drawError && <div className="draw-error">{drawError}</div>}
       <div className="draw-count">
         <span className="draw-count-num">{draftIds.length}</span> block{draftIds.length === 1 ? '' : 's'} marked
       </div>

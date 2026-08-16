@@ -36,9 +36,10 @@ const POI_COLOR = ['match', ['get', 'type'],
   'transport', PLACE_COLORS.transport,
   '#b8beca']
 
-function MapCanvas({ streetsReady, coveredIds, draftIds, walks, mode, onMapClick }) {
+function MapCanvas({ streetsReady, coveredIds, draftIds, walks, mode, onMapClick, drawStart }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
+  const markerRef = useRef(null)
   const callbacksRef = useRef({ onMapClick, mode })
   callbacksRef.current = { onMapClick, mode }
   const [placesOn, setPlacesOn] = useState(false)
@@ -59,9 +60,7 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, walks, mode, onMapClick
     map.on('click', (e) => {
       const { onMapClick, mode } = callbacksRef.current
       if (mode !== 'draw') return
-      const { lng, lat } = e.lngLat
-      const mpp = 156543.03392 * Math.cos((lat * Math.PI) / 180) / Math.pow(2, map.getZoom())
-      onMapClick(lng, lat, Math.max(8, Math.min(120, 28 * mpp)))
+      onMapClick(e.lngLat.lng, e.lngLat.lat)
     })
     map.on('mousemove', () => {
       const { mode } = callbacksRef.current
@@ -70,6 +69,22 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, walks, mode, onMapClick
     mapRef.current = map
     return () => map.remove()
   }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    if (drawStart) {
+      if (markerRef.current) markerRef.current.remove()
+      const el = document.createElement('div')
+      el.className = 'draw-start-marker'
+      markerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([drawStart.lng, drawStart.lat])
+        .addTo(map)
+    } else if (markerRef.current) {
+      markerRef.current.remove()
+      markerRef.current = null
+    }
+  }, [drawStart])
 
   useEffect(() => {
     const map = mapRef.current

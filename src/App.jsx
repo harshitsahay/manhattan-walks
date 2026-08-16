@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Map as MapIcon, History, Footprints } from 'lucide-react'
 import { fetchWalks, insertWalk, deleteWalk } from './lib/supabase'
 import { SUPABASE_URL } from './config'
-import { loadStreets, nearestSegment, snapTrace, getStreets, getSegment } from './lib/streets'
+import { loadStreets, snapTrace, getStreets, getSegment, nearestSegment, routeBetween } from './lib/streets'
 import { computeStats } from './lib/stats'
 import { importGpxFile } from './lib/gpx'
 import MapView from './components/MapView'
@@ -14,6 +14,8 @@ export default function App() {
   const [streetsReady, setStreetsReady] = useState(false)
   const [walks, setWalks] = useState([])
   const [draftIds, setDraftIds] = useState([])
+  const [drawStart, setDrawStart] = useState(null)
+  const [drawError, setDrawError] = useState(null)
   const [mode, setMode] = useState('view')
   const [page, setPage] = useState('map')
   const [importedKm, setImportedKm] = useState(0)
@@ -49,20 +51,44 @@ export default function App() {
   const streets = getStreets() || []
   const stats = useMemo(() => computeStats(streets, coveredIds, walks), [streets, coveredIds, walks])
 
-  const handleMapClick = useCallback((lng, lat, radius) => {
-    const hit = nearestSegment(lng, lat, radius)
-    if (hit) {
-      setDraftIds((prev) => (prev.includes(hit.segment.id) ? prev : [...prev, hit.segment.id]))
+  const handleMapClick = useCallback((lng, lat) => {
+    if (!drawStart) {
+      if (!nearestSegment(lng, lat, 60)) {
+        setDrawError('No street nearby — tap closer to a street')
+        return
+      }
+      setDrawStart({ lng, lat })
+      setDrawError(null)
+      return
     }
-  }, [])
+    const route = routeBetween(drawStart.lng, drawStart.lat, lng, lat)
+    if (!route) {
+      setDrawError('Could not route there — tap closer to a street')
+      return
+    }
+    setDraftIds((prev) => {
+      const have = new Set(prev)
+      const add = route.ids.filter((id) => !have.has(id))
+      return add.length ? [...prev, ...add] : prev
+    })
+    setDrawStart(null)
+    setDrawError(null)
+  }, [drawStart])
 
   const handleUndo = () => setDraftIds((prev) => prev.slice(0, -1))
   const handleClear = () => {
     setDraftIds([])
     setImportedKm(0)
     setImportedPolyline(null)
+    setDrawStart(null)
+    setDrawError(null)
   }
   const handleCancel = handleClear
+
+  const startDraw = useCallback(() => {
+    setMode('draw')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
 
   const handleSave = async ({ walked_on, note, walker }) => {
     const segKm = draftIds.reduce((acc, id) => acc + (getSegment(id)?.len_m || 0), 0) / 1000
@@ -89,6 +115,8 @@ export default function App() {
     setDraftIds([])
     setImportedKm(0)
     setImportedPolyline(null)
+    setDrawStart(null)
+    setDrawError(null)
     setMode('view')
   }
 
@@ -162,6 +190,8 @@ export default function App() {
           {mode === 'draw' ? (
             <DrawPanel
               draftIds={draftIds}
+              drawStart={drawStart}
+              drawError={drawError}
               onUndo={handleUndo}
               onClear={handleClear}
               onCancel={handleCancel}
@@ -172,7 +202,7 @@ export default function App() {
             <StatsPanel stats={stats} draftCount={draftIds.length} />
           )}
           {mode === 'view' && (
-            <WalksList walks={walks} onDelete={handleDelete} onStartDraw={() => setMode('draw')} />
+            <WalksList walks={walks} onDelete={handleDelete} onStartDraw={startDraw} />
           )}
         </aside>
         <MapView
@@ -181,6 +211,7 @@ export default function App() {
           draftIds={draftIds}
           walks={walks}
           mode={mode}
+          drawStart={drawStart}
           onMapClick={handleMapClick}
         />
       </div>
