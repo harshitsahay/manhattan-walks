@@ -238,7 +238,21 @@ export function routeBetween(lngA, latA, lngB, latB, radiusM = 60) {
   if (a.segment.id === b.segment.id) {
     const full = isAtJunction(a) && isAtJunction(b)
     const id = a.segment.id
-    return { ids: [id], fullIds: full ? [id] : [], polyline: pathCoords([id]) }
+    const seg = getSegment(id)
+    const coords = seg.coords.map(([lat, lng]) => [lng, lat])
+    let iA = 0, iB = coords.length - 1
+    let bestA = Infinity, bestB = Infinity
+    for (let i = 0; i < coords.length; i++) {
+      const dA = (coords[i][0] - lngA) ** 2 + (coords[i][1] - latA) ** 2
+      if (dA < bestA) { bestA = dA; iA = i }
+      const dB = (coords[i][0] - lngB) ** 2 + (coords[i][1] - latB) ** 2
+      if (dB < bestB) { bestB = dB; iB = i }
+    }
+    const lo = Math.min(iA, iB)
+    const hi = Math.max(iA, iB)
+    const polyline = coords.slice(lo, hi + 1)
+    if (iA > iB) polyline.reverse()
+    return { ids: [id], fullIds: full ? [id] : [], polyline }
   }
   const start = nearestNode(graph, a)
   const goal = nearestNode(graph, b)
@@ -252,7 +266,8 @@ export function routeBetween(lngA, latA, lngB, latB, radiusM = 60) {
       ids.push(id)
       if (isAtJunction(hit)) fullIds.push(id)
     }
-    return { ids, fullIds, polyline: pathCoords(ids) }
+    const polyline = [[lngA, latA], [lngB, latB]]
+    return { ids, fullIds, polyline }
   }
   const ids = dijkstra(graph, start, goal)
   if (!ids || !ids.length) return null
