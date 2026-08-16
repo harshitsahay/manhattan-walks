@@ -20,13 +20,8 @@ function WalkerChip({ walker }) {
 export default function HistoryPage({ walks, onDelete, onBack }) {
   const [confirmId, setConfirmId] = useState(null)
 
-  const walkers = ['Harshit', 'Jay', 'Both']
-  const perWalker = walkers.map((w) => {
-    const list = walks.filter((x) => x.walker === w)
-    const blocks = new Set(list.flatMap((x) => x.covered_edges || []))
-    const km = list.reduce((s, x) => s + (x.walked_km || 0), 0)
-    return { walker: w, count: list.length, blocks: blocks.size, km }
-  })
+  const allBlocks = new Set(walks.flatMap((x) => x.covered_edges || []))
+  const totalKm = walks.reduce((s, x) => s + (x.walked_km || 0), 0)
 
   const sorted = [...walks].sort((a, b) => (b.walked_on || '').localeCompare(a.walked_on || ''))
 
@@ -51,18 +46,15 @@ export default function HistoryPage({ walks, onDelete, onBack }) {
       </div>
 
       <div className="history-summary">
-        {perWalker.map((s) => (
-          <div className="history-card" key={s.walker}>
-            <div className="history-card-top">
-              <WalkerChip walker={s.walker} />
-              <span className="history-card-count">{s.count} walk{s.count === 1 ? '' : 's'}</span>
-            </div>
-            <div className="history-card-stats">
-              <div><strong>{s.km.toFixed(1)}</strong><span>km walked</span></div>
-              <div><strong>{s.blocks}</strong><span>blocks covered</span></div>
-            </div>
+        <div className="history-card">
+          <div className="history-card-top">
+            <span className="history-card-count">{walks.length} walks logged</span>
           </div>
-        ))}
+          <div className="history-card-stats">
+            <div><strong>{totalKm.toFixed(1)}</strong><span>km walked</span></div>
+            <div><strong>{allBlocks.size}</strong><span>blocks covered</span></div>
+          </div>
+        </div>
       </div>
 
       <ul className="history-list">

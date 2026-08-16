@@ -169,7 +169,7 @@ export default function App() {
               onImportGpx={handleImportGpx}
             />
           ) : (
-            <StatsPanel stats={stats} walks={walks} streets={streets} draftCount={draftIds.length} />
+            <StatsPanel stats={stats} draftCount={draftIds.length} />
           )}
           {mode === 'view' && (
             <WalksList walks={walks} onDelete={handleDelete} onStartDraw={() => setMode('draw')} />

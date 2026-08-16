@@ -18,25 +18,12 @@ function Card({ label, value, sub, pct, color, children }) {
   )
 }
 
-const WALKER_COLORS = { Harshit: '#ff9f1c', Jay: '#8ad6bf', Both: '#a195ff' }
-
-function walkerStats(walks, streets) {
-  return ['Harshit', 'Jay'].map((w) => {
-    const list = walks.filter((x) => x.walker === w)
-    const blocks = new Set(list.flatMap((x) => x.covered_edges || []))
-    const km = list.reduce((s, x) => s + (x.walked_km || 0), 0)
-    return { walker: w, count: list.length, blocks: blocks.size, km, pct: streets.length ? (blocks.size / streets.length) * 100 : 0 }
-  })
-}
-
-export default function StatsPanel({ stats, walks = [], streets = [], draftCount }) {
+export default function StatsPanel({ stats, draftCount }) {
   const {
     totalBlocks, blocks, pct, streetKm, totalStreetKm,
     streetPct, walkedKm, walkCount, namedStreets,
     completeStreets, completeStreetsPct, closest,
   } = stats
-
-  const perWalker = walkerStats(walks, streets)
 
   return (
     <div className="stats-panel">
@@ -69,17 +56,6 @@ export default function StatsPanel({ stats, walks = [], streets = [], draftCount
           pct={streetPct}
           color="#8ad6bf"
         />
-      </div>
-      <div className="walker-split">
-        {perWalker.map((p) => (
-          <div className="walker-stat" key={p.walker}>
-            <div className="walker-stat-head">
-              <span style={{ color: WALKER_COLORS[p.walker] }}>{p.walker}</span>
-              <span>{p.blocks} blocks · {p.km.toFixed(1)} km · {p.count} walks</span>
-            </div>
-            <Bar pct={p.pct} color={WALKER_COLORS[p.walker]} />
-          </div>
-        ))}
       </div>
       <Card
         label="Named streets completed"
