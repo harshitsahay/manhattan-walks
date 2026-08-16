@@ -40,7 +40,7 @@ export default function SearchBox({ onSelect }) {
     setQuery(hit.name)
     setOpen(false)
     setResults([])
-    onSelect(hit.lng, hit.lat, hit.name)
+    onSelect(hit.lng, hit.lat)
   }
 
   return (

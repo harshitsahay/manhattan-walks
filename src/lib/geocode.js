@@ -7,13 +7,22 @@ export async function geocode(query) {
   const url =
     `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=7&q=${q}` +
     `&viewbox=${BBOX.join(',')}&bounded=1&countrycodes=us&accept-language=en`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error('Search failed')
-  const data = await res.json()
-  return data.map((d) => ({
-    name: d.display_name.split(',')[0],
-    full: d.display_name,
-    lat: Number(d.lat),
-    lng: Number(d.lon),
-  }))
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 5000)
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'ManhattanWalks/1.0' },
+    })
+    if (!res.ok) throw new Error('Search failed')
+    const data = await res.json()
+    return data.map((d) => ({
+      name: d.display_name.split(',')[0],
+      full: d.display_name,
+      lat: Number(d.lat),
+      lng: Number(d.lon),
+    }))
+  } finally {
+    clearTimeout(timer)
+  }
 }

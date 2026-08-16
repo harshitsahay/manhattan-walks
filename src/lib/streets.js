@@ -228,8 +228,7 @@ function pathCoords(ids) {
 }
 
 /** Route along the street network between two clicked points.
- *  `ids` = full path marked on the map (may include partial end blocks);
- *  `fullIds` = only blocks fully covered end-to-end (partial start/end blocks skipped). */
+ *  Returns: ids (route segments), fullIds (fully-covered segments), polyline (click-to-click coords). */
 export function routeBetween(lngA, latA, lngB, latB, radiusM = 60) {
   const graph = ensureRouteGraph()
   if (!graph) return null
@@ -239,7 +238,7 @@ export function routeBetween(lngA, latA, lngB, latB, radiusM = 60) {
   if (a.segment.id === b.segment.id) {
     const full = isAtJunction(a) && isAtJunction(b)
     const id = a.segment.id
-    return { ids: [id], coords: pathCoords([id]), fullIds: full ? [id] : [] }
+    return { ids: [id], fullIds: full ? [id] : [], polyline: pathCoords([id]) }
   }
   const start = nearestNode(graph, a)
   const goal = nearestNode(graph, b)
@@ -253,12 +252,12 @@ export function routeBetween(lngA, latA, lngB, latB, radiusM = 60) {
       ids.push(id)
       if (isAtJunction(hit)) fullIds.push(id)
     }
-    return { ids, coords: pathCoords(ids), fullIds }
+    return { ids, fullIds, polyline: pathCoords(ids) }
   }
   const ids = dijkstra(graph, start, goal)
   if (!ids || !ids.length) return null
+  const routeCoords = pathCoords(ids)
+  const polyline = [[lngA, latA], ...routeCoords, [lngB, latB]]
   const fullIds = [...ids]
-  if (ids[0] === a.segment.id && !isAtJunction(a)) fullIds.shift()
-  if (ids[ids.length - 1] === b.segment.id && !isAtJunction(b)) fullIds.pop()
-  return { ids, coords: pathCoords(ids), fullIds }
+  return { ids, fullIds, polyline }
 }

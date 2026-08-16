@@ -36,10 +36,11 @@ const POI_COLOR = ['match', ['get', 'type'],
   'transport', PLACE_COLORS.transport,
   '#b8beca']
 
-function MapCanvas({ streetsReady, coveredIds, draftIds, walks, mode, onMapClick, drawStart }) {
+function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPolyline, walks, mode, onMapClick, drawStart }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const markerRef = useRef(null)
+  const searchMarkerRef = useRef(null)
   const callbacksRef = useRef({ onMapClick, mode })
   callbacksRef.current = { onMapClick, mode }
   const [placesOn, setPlacesOn] = useState(false)
@@ -84,7 +85,11 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, walks, mode, onMapClick
       markerRef.current.remove()
       markerRef.current = null
     }
-  }, [drawStart])
+    if (mode === 'draw' && searchMarkerRef.current) {
+      searchMarkerRef.current.remove()
+      searchMarkerRef.current = null
+    }
+  }, [drawStart, mode])
 
   useEffect(() => {
     const map = mapRef.current
@@ -229,22 +234,17 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, walks, mode, onMapClick
   useEffect(() => {
     const map = mapRef.current
     if (!map || !map.getLayer('draft')) return
-    const ids = [...draftIds]
-    map.setFilter('draft', ids.length
-      ? ['in', ['get', 'id'], ['literal', ids]]
+    const fullIds = [...draftFullIds]
+    map.setFilter('draft', fullIds.length
+      ? ['in', ['get', 'id'], ['literal', fullIds]]
       : noMatchFilter)
-    const coords = []
-    for (const id of ids) {
-      const seg = getSegment(id)
-      if (seg) coords.push(...toLngLat(seg.coords))
-    }
     map.getSource('draft-route').setData({
       type: 'FeatureCollection',
-      features: coords.length
-        ? [{ type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }]
+      features: draftPolyline.length
+        ? [{ type: 'Feature', geometry: { type: 'LineString', coordinates: draftPolyline } }]
         : [],
     })
-  }, [draftIds])
+  }, [draftIds, draftFullIds, draftPolyline])
 
   useEffect(() => {
     const map = mapRef.current
@@ -260,8 +260,17 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, walks, mode, onMapClick
     map.getSource('routes').setData({ type: 'FeatureCollection', features })
   }, [walks])
 
-  const flyTo = (lng, lat, zoom = 14.5) => {
-    mapRef.current?.flyTo({ center: [lng, lat], zoom, duration: 900 })
+  const flyTo = (lng, lat) => {
+    const map = mapRef.current
+    if (!map) return
+    map.flyTo({ center: [lng, lat], zoom: 15, duration: 900 })
+    if (searchMarkerRef.current) searchMarkerRef.current.remove()
+    const el = document.createElement('div')
+    el.className = 'search-marker'
+    searchMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+      .setLngLat([lng, lat])
+      .addTo(map)
+    setTimeout(() => { searchMarkerRef.current?.remove(); searchMarkerRef.current = null }, 8000)
   }
 
   return (

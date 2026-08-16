@@ -61,6 +61,17 @@ export default function App() {
     return [...seen]
   }, [draftRoutes])
 
+  const draftPolyline = useMemo(() => {
+    const out = []
+    for (const r of draftRoutes) {
+      for (const c of r.polyline) {
+        if (out.length && out[out.length - 1][0] === c[0] && out[out.length - 1][1] === c[1]) continue
+        out.push(c)
+      }
+    }
+    return out
+  }, [draftRoutes])
+
   const streets = getStreets() || []
   const stats = useMemo(() => computeStats(streets, coveredIds, walks), [streets, coveredIds, walks])
 
@@ -79,7 +90,7 @@ export default function App() {
       setDrawError('Could not route there — tap closer to a street')
       return
     }
-    setDraftRoutes((prev) => [...prev, { ids: route.ids, fullIds: route.fullIds }])
+    setDraftRoutes((prev) => [...prev, { ids: route.ids, fullIds: route.fullIds, polyline: route.polyline }])
     setDrawStart(null)
     setDrawError(null)
   }, [drawStart])
@@ -102,16 +113,7 @@ export default function App() {
   const handleSave = async ({ walked_on, note, walker }) => {
     const segKm = draftIds.reduce((acc, id) => acc + (getSegment(id)?.len_m || 0), 0) / 1000
     const walkedKm = importedKm + segKm
-    let polyline
-    if (importedPolyline) {
-      polyline = importedPolyline
-    } else {
-      polyline = []
-      for (const id of draftIds) {
-        const seg = getSegment(id)
-        if (seg) polyline.push(...seg.coords)
-      }
-    }
+    const polyline = importedPolyline || draftPolyline
     const saved = await insertWalk({
       walked_on,
       note,
@@ -219,6 +221,8 @@ export default function App() {
           streetsReady={streetsReady}
           coveredIds={coveredIds}
           draftIds={draftIds}
+          draftFullIds={draftFullIds}
+          draftPolyline={draftPolyline}
           walks={walks}
           mode={mode}
           drawStart={drawStart}
