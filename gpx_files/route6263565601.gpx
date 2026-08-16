@@ -1,0 +1,19 @@
+<?xml version="1.0" ?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1">
+ <trk>
+  <name>Upper East Side</name>
+  <trkseg>
+   <trkpt lat="40.76788295" lon="-73.96415041"/>
+   <trkpt lat="40.7698955" lon="-73.96889694"/>
+   <trkpt lat="40.7698955" lon="-73.96889694"/>
+   <trkpt lat="40.76425796" lon="-73.97301291"/>
+   <trkpt lat="40.76427" lon="-73.97303"/>
+   <trkpt lat="40.76193" lon="-73.96747"/>
+   <trkpt lat="40.76112" lon="-73.96555"/>
+   <trkpt lat="40.76089" lon="-73.96502"/>
+   <trkpt lat="40.76062" lon="-73.96437"/>
+   <trkpt lat="40.76032" lon="-73.96457"/>
+   <trkpt lat="40.76" lon="-73.9648"/>
+  </trkseg>
+ </trk>
+</gpx>

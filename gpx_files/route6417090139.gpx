@@ -1,0 +1,14 @@
+<?xml version="1.0" ?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1">
+ <trk>
+  <name>Honest </name>
+  <trkseg>
+   <trkpt lat="40.72917852" lon="-74.00119708"/>
+   <trkpt lat="40.73044155" lon="-74.00012555"/>
+   <trkpt lat="40.73044155" lon="-74.00012555"/>
+   <trkpt lat="40.73106891" lon="-74.00141032"/>
+   <trkpt lat="40.73106891" lon="-74.00141032"/>
+   <trkpt lat="40.73231761" lon="-74.00051514"/>
+  </trkseg>
+ </trk>
+</gpx>

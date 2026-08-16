@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1">
+ <trk>
+  <name>Post Ivan Ramen</name>
+  <trkseg>
+   <trkpt lat="40.71871" lon="-73.98813"/>
+   <trkpt lat="40.72097" lon="-73.98697"/>
+   <trkpt lat="40.72097" lon="-73.98697"/>
+   <trkpt lat="40.72099" lon="-73.98695"/>
+   <trkpt lat="40.72078" lon="-73.98625"/>
+   <trkpt lat="40.7205" lon="-73.98532"/>
+   <trkpt lat="40.72024" lon="-73.98448"/>
+   <trkpt lat="40.72024" lon="-73.98448"/>
+   <trkpt lat="40.72051" lon="-73.98434"/>
+  </trkseg>
+ </trk>
+</gpx>

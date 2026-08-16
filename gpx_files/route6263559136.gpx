@@ -1,0 +1,10 @@
+<?xml version="1.0" ?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1">
+ <trk>
+  <name>Post my Old Ass</name>
+  <trkseg>
+   <trkpt lat="40.74574628" lon="-73.98214089"/>
+   <trkpt lat="40.74352435" lon="-73.97686614"/>
+  </trkseg>
+ </trk>
+</gpx>

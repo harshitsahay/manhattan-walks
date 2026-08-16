@@ -1,0 +1,18 @@
+<?xml version="1.0" ?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1">
+ <trk>
+  <name>Chama Mama</name>
+  <trkseg>
+   <trkpt lat="40.73835" lon="-73.99916"/>
+   <trkpt lat="40.73856" lon="-73.99966"/>
+   <trkpt lat="40.73856" lon="-73.99966"/>
+   <trkpt lat="40.73857" lon="-73.99969"/>
+   <trkpt lat="40.73922" lon="-73.99921"/>
+   <trkpt lat="40.73922" lon="-73.99921"/>
+   <trkpt lat="40.73925" lon="-73.99919"/>
+   <trkpt lat="40.73969" lon="-74.00022"/>
+   <trkpt lat="40.73995" lon="-74.00083"/>
+   <trkpt lat="40.74017" lon="-74.00137"/>
+  </trkseg>
+ </trk>
+</gpx>

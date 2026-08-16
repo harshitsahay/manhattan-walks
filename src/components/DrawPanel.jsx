@@ -1,0 +1,88 @@
+import { useEffect, useRef, useState } from 'react'
+import { Trash2, Undo2, X, Upload, MapPin, Check } from 'lucide-react'
+
+function fmtDate(iso) {
+  if (!iso) return 'date unknown'
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+export default function DrawPanel({ draftIds, onUndo, onClear, onSave, onImportGpx, onCancel }) {
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [note, setNote] = useState('')
+  const [saving, setSaving] = useState(false)
+  const fileRef = useRef(null)
+
+  const save = async () => {
+    if (!draftIds.length) return
+    setSaving(true)
+    try {
+      await onSave({ walked_on: date, note: note.trim() || null })
+      setNote('')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  useEffect(() => () => setSaving(false), [])
+
+  return (
+    <div className="draw-panel">
+      <div className="draw-head">
+        <div className="draw-title"><MapPin size={16} /> Logging a walk</div>
+        <button className="icon-btn" onClick={onCancel} title="Cancel"><X size={16} /></button>
+      </div>
+      <p className="draw-hint">
+        Click along the streets you walked. Each click snaps to the nearest street segment.
+      </p>
+      <div className="draw-count">
+        <span className="draw-count-num">{draftIds.length}</span> block{draftIds.length === 1 ? '' : 's'} marked
+      </div>
+      <div className="draw-controls">
+        <button className="btn ghost" onClick={onUndo} disabled={!draftIds.length}><Undo2 size={15} /> Undo</button>
+        <button className="btn ghost" onClick={onClear} disabled={!draftIds.length}><X size={15} /> Clear</button>
+      </div>
+      <input className="field" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      <textarea
+        className="field"
+        placeholder="Note (optional) — where did you go?"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={2}
+      />
+      <button className="btn primary" onClick={save} disabled={!draftIds.length || saving}>
+        <Check size={16} /> {saving ? 'Saving…' : 'Save walk'}
+      </button>
+      <button className="btn ghost" onClick={() => fileRef.current?.click()}>
+        <Upload size={15} /> Import GPX file instead
+      </button>
+      <input ref={fileRef} type="file" accept=".gpx,application/gpx+xml" hidden
+        onChange={(e) => e.target.files[0] && onImportGpx(e.target.files[0])} />
+    </div>
+  )
+}
+
+export function WalksList({ walks, onDelete, onStartDraw }) {
+  return (
+    <div className="walks-list">
+      <div className="walks-head">
+        <span>Walk history</span>
+        <button className="btn primary small" onClick={onStartDraw}><MapPin size={14} /> Log a walk</button>
+      </div>
+      {walks.length === 0 && <p className="walks-empty">No walks logged yet.</p>}
+      {walks.map((w) => (
+        <div className="walk-row" key={w.id}>
+          <div className="walk-row-main">
+            <div className="walk-row-title">
+              <span>{fmtDate(w.walked_on)}</span>
+              <span className="walk-row-km">{w.walked_km != null ? `${w.walked_km.toFixed(2)} km` : ''}</span>
+            </div>
+            {w.note && <div className="walk-row-note">{w.note}</div>}
+            <div className="walk-row-blocks">{w.covered_edges?.length || 0} blocks</div>
+          </div>
+          <button className="icon-btn danger" onClick={() => onDelete(w.id)} title="Delete walk"><Trash2 size={15} /></button>
+        </div>
+      ))}
+    </div>
+  )
+}

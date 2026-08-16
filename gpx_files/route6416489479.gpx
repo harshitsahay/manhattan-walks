@@ -1,0 +1,14 @@
+<?xml version="1.0" ?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1">
+ <trk>
+  <name>Post central park short</name>
+  <trkseg>
+   <trkpt lat="40.7756801" lon="-73.96467843"/>
+   <trkpt lat="40.77629758" lon="-73.96421709"/>
+   <trkpt lat="40.77629758" lon="-73.96421709"/>
+   <trkpt lat="40.7756444" lon="-73.96262425"/>
+   <trkpt lat="40.7756444" lon="-73.96262425"/>
+   <trkpt lat="40.77536512" lon="-73.96282273"/>
+  </trkseg>
+ </trk>
+</gpx>
