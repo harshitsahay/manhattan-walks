@@ -22,7 +22,7 @@ const MAP_STYLE = {
 const toLngLat = (coords) => coords.map(([lat, lng]) => [lng, lat])
 const noMatchFilter = ['==', ['get', 'id'], '']
 
-export function MapCanvas(props) {
+export function MapCanvas({ streetsReady, coveredIds, draftIds, walks, mode, onMapClick }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const callbacksRef = useRef({ onMapClick, mode })
