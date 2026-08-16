@@ -1,0 +1,18 @@
+<!doctype html><html><body>
+<div id="map" style="width:400px;height:400px"></div>
+<script type="module">
+import maplibregl from '/node_modules/maplibre-gl/dist/maplibre-gl.js';
+const map = new maplibregl.Map({ container: 'map', style: { version: 8, sources: {}, layers: [] } });
+map.on('load', () => {
+  try {
+    map.addSource('streets', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    map.addLayer({ id: 'a', type: 'line', source: 'streets', filter: ['==', ['get','id'], ''] });
+    console.log('P1 addLayer ok');
+    map.setPaintProperty('a', 'line-color', '#4b5263'); console.log('P2 line-color ok');
+    map.setPaintProperty('a', 'line-opacity', 0.5); console.log('P3 line-opacity ok');
+    map.setPaintProperty('a', 'line-width', 1.4); console.log('P4 line-width ok');
+    map.setPaintProperty('a', 'line-cap', 'round'); console.log('P5 line-cap ok');
+    map.setPaintProperty('a', 'line-join', 'round'); console.log('P6 line-join ok');
+  } catch (e) { console.log('CRASH:', e.message); }
+});
+</script></body></html>

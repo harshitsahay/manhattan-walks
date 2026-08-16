@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
+import ErrorBoundary from './ErrorBoundary'
 import { getSegment, getStreetFeatures } from '../lib/streets'
 
 const MANHATTAN_BOUNDS = [[-74.06, 40.68], [-73.88, 40.88]]
@@ -21,7 +22,7 @@ const MAP_STYLE = {
 const toLngLat = (coords) => coords.map(([lat, lng]) => [lng, lat])
 const noMatchFilter = ['==', ['get', 'id'], '']
 
-export default function MapView({ streetsReady, coveredIds, draftIds, walks, mode, onMapClick }) {
+export function MapCanvas(props) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const callbacksRef = useRef({ onMapClick, mode })
@@ -72,19 +73,19 @@ export default function MapView({ streetsReady, coveredIds, draftIds, walks, mod
     map.setPaintProperty('streets-remaining', 'line-color', '#4b5263')
     map.setPaintProperty('streets-remaining', 'line-opacity', 0.5)
     map.setPaintProperty('streets-remaining', 'line-width', 1.4)
-    map.setPaintProperty('streets-remaining', 'line-cap', 'round')
+    map.setLayoutProperty('streets-remaining', 'line-cap', 'round')
 
     map.addLayer({ id: 'streets-covered-glow', type: 'line', source: 'streets', filter: noMatchFilter })
     map.setPaintProperty('streets-covered-glow', 'line-color', '#e0b940')
     map.setPaintProperty('streets-covered-glow', 'line-opacity', 0.16)
     map.setPaintProperty('streets-covered-glow', 'line-width', 10)
-    map.setPaintProperty('streets-covered-glow', 'line-cap', 'round')
+    map.setLayoutProperty('streets-covered-glow', 'line-cap', 'round')
 
     map.addLayer({ id: 'streets-covered', type: 'line', source: 'streets', filter: noMatchFilter })
     map.setPaintProperty('streets-covered', 'line-color', '#e0b940')
     map.setPaintProperty('streets-covered', 'line-opacity', 0.95)
     map.setPaintProperty('streets-covered', 'line-width', 2.8)
-    map.setPaintProperty('streets-covered', 'line-cap', 'round')
+    map.setLayoutProperty('streets-covered', 'line-cap', 'round')
 
     map.addLayer({ id: 'routes', type: 'line', source: 'routes' })
     map.setPaintProperty('routes', 'line-color', '#8ad6bf')
@@ -95,13 +96,13 @@ export default function MapView({ streetsReady, coveredIds, draftIds, walks, mod
     map.setPaintProperty('draft-route', 'line-color', '#ff9f1c')
     map.setPaintProperty('draft-route', 'line-opacity', 0.9)
     map.setPaintProperty('draft-route', 'line-width', 4)
-    map.setPaintProperty('draft-route', 'line-cap', 'round')
+    map.setLayoutProperty('draft-route', 'line-cap', 'round')
 
     map.addLayer({ id: 'draft', type: 'line', source: 'streets', filter: noMatchFilter })
     map.setPaintProperty('draft', 'line-color', '#ffd166')
     map.setPaintProperty('draft', 'line-opacity', 1)
     map.setPaintProperty('draft', 'line-width', 5)
-    map.setPaintProperty('draft', 'line-cap', 'round')
+    map.setLayoutProperty('draft', 'line-cap', 'round')
   }, [streetsReady])
 
   useEffect(() => {
@@ -151,4 +152,12 @@ export default function MapView({ streetsReady, coveredIds, draftIds, walks, mod
   }, [walks])
 
   return <div ref={containerRef} className="map-canvas" />
+}
+
+export default function MapView(props) {
+  return (
+    <ErrorBoundary>
+      <MapCanvas {...props} />
+    </ErrorBoundary>
+  )
 }
