@@ -179,7 +179,7 @@ export default function App() {
       <header className="header">
         <div className="masthead">
           <p className="masthead-kicker">Every street, one block at a time</p>
-          <h1>Manhattan</h1>
+          <h1><span className="mta-bullet">M</span>Manhattan</h1>
         </div>
         <div className="segmented header-tabs" role="tablist">
           <button

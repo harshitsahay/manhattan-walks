@@ -1,4 +1,4 @@
-function Bar({ pct, color = '#e0b940' }) {
+function Bar({ pct, color = '#FCCC0A' }) {
   return (
     <div className="bar">
       <div className="bar-fill" style={{ width: `${Math.min(100, pct)}%`, background: color }} />
@@ -32,14 +32,14 @@ export default function StatsPanel({ stats, draftCount }) {
         value={`${pct.toFixed(1)}%`}
         sub={`${blocks} of ${totalBlocks} street blocks`}
         pct={pct}
-        color="#e0b940"
+        color="#FCCC0A"
       />
       {draftCount > 0 && (
         <Card
           label="New blocks this walk"
           value={`+${draftCount}`}
           pct={((blocks + draftCount) / totalBlocks) * 100}
-          color="#ff9f1c"
+          color="#FF6319"
         />
       )}
       <div className="stat-row">
@@ -47,14 +47,14 @@ export default function StatsPanel({ stats, draftCount }) {
           label="Distance walked"
           value={`${walkedKm.toFixed(1)} km`}
           sub={`${walkCount} walks`}
-          color="#8ad6bf"
+          color="#00933C"
         />
         <Card
           label="Unique street km"
           value={`${streetKm.toFixed(1)} km`}
           sub={`of ${totalStreetKm.toFixed(0)} km`}
           pct={streetPct}
-          color="#8ad6bf"
+          color="#00933C"
         />
       </div>
       <Card
@@ -62,7 +62,7 @@ export default function StatsPanel({ stats, draftCount }) {
         value={completeStreets.length > 0 ? completeStreets.length : 0}
         sub={`of ${namedStreets} named streets`}
         pct={completeStreetsPct}
-        color="#7a6bd6"
+        color="#B933AD"
       >
         {closest && (
           <div className="closest-street">

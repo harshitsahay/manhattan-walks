@@ -8,7 +8,7 @@ function fmtDate(iso) {
 }
 
 const WALKERS = ['Harshit', 'Jay']
-const WALKER_COLORS = { Harshit: '#ff9f1c', Jay: '#8ad6bf' }
+const WALKER_COLORS = { Harshit: '#EE352E', Jay: '#00933C' }
 
 export default function DrawPanel({ draftIds, draftCount, drawStart, drawError, onUndo, onClear, onSave, onImportGpx, onCancel }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))

@@ -13,11 +13,11 @@ export function getPlaces() {
 }
 
 export const PLACE_COLORS = {
-  park: '#5fb878',
-  food: '#efb04e',
-  museum: '#a195ff',
-  culture: '#a195ff',
-  education: '#58b7cd',
-  landmark: '#e0b940',
-  transport: '#b8beca',
+  park: '#00933C',
+  food: '#FF6319',
+  museum: '#EE352E',
+  culture: '#FCCC0A',
+  education: '#0039A6',
+  landmark: '#FCCC0A',
+  transport: '#6E6E6E',
 }
