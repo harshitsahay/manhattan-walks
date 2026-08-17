@@ -96,6 +96,19 @@ export function nearestSegment(lng, lat, radiusM) {
   return best
 }
 
+/** All street segments within radiusM of a point (exact distance), or []. */
+export function segmentsNearPoint(lng, lat, radiusM) {
+  const cands = candidatesInCircle(lng, lat, radiusM)
+  if (!cands.length) return []
+  const pt = turf.point([lng, lat])
+  const out = []
+  for (const s of cands) {
+    const hit = turf.nearestPointOnLine(turfLine(s), pt)
+    if (turf.distance(pt, hit, { units: 'meters' }) <= radiusM) out.push(s)
+  }
+  return out
+}
+
 /** Snap a sequence of GPS points to street segments within radiusM. Returns covered ids (Set) in traversal order. */
 export function snapTrace(points, radiusM = 15) {
   const ordered = []
@@ -268,13 +281,13 @@ export function routeBetween(lngA, latA, lngB, latB, radiusM = 60) {
       ids.push(id)
       if (isAtJunction(hit)) fullIds.push(id)
     }
-    const polyline = [[lngA, latA], [lngB, latB]]
+    const polyline = [a.point, b.point]
     return { ids, fullIds, polyline, endPoint: b.point }
   }
   const ids = dijkstra(graph, start, goal)
   if (!ids || !ids.length) return null
   const routeCoords = pathCoords(ids)
-  const polyline = [[lngA, latA], ...routeCoords, [lngB, latB]]
+  const polyline = [a.point, ...routeCoords, b.point]
   const fullIds = [...ids]
   return { ids, fullIds, polyline, endPoint: b.point }
 }

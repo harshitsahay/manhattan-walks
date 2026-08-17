@@ -86,11 +86,12 @@ export default function App() {
 
   const handleMapClick = useCallback((lng, lat) => {
     if (!drawStart) {
-      if (!nearestSegment(lng, lat, 60)) {
+      const hit = nearestSegment(lng, lat, 60)
+      if (!hit) {
         setDrawError('No street nearby — tap closer to a street')
         return
       }
-      setDrawStart({ lng, lat })
+      setDrawStart({ lng: hit.point[0], lat: hit.point[1] })
       setDrawError(null)
       return
     }
@@ -130,7 +131,9 @@ export default function App() {
   const handleSave = async ({ walked_on, note, walker }) => {
     const segKm = draftIds.reduce((acc, id) => acc + (getSegment(id)?.len_m || 0), 0) / 1000
     const walkedKm = importedKm + segKm
-    const polyline = importedPolyline || draftPolyline
+    const polyline = importedPolyline
+      ? importedPolyline
+      : draftPolyline.map(([lng, lat]) => [lat, lng])
     const saved = await insertWalk({
       walked_on,
       note,
