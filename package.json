@@ -7,10 +7,13 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name=manhattan-walks"
+    "deploy": "npm run deploy:api && npm run deploy:site",
+    "deploy:api": "wrangler deploy --config worker/wrangler.jsonc",
+    "deploy:site": "npm run build && wrangler pages deploy dist --project-name=manhattan-walks",
+    "backup": "node scripts/backup_walks.mjs",
+    "backup:restore": "node scripts/backup_walks.mjs --restore"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4",
     "@turf/turf": "^7.1.0",
     "lucide-react": "^1.31.0",
     "maplibre-gl": "^4.7.1",

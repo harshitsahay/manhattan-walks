@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Trash2, Undo2, X, Upload, MapPin, Check } from 'lucide-react'
+import { Trash2, Undo2, X, Upload, MapPin, Check, Pencil, Crosshair } from 'lucide-react'
+import { WALKERS, WALKER_COLOR } from '../lib/walkers'
 
 function fmtDate(iso) {
   if (!iso) return 'date unknown'
@@ -7,15 +8,18 @@ function fmtDate(iso) {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-const WALKERS = ['Harshit', 'Jay']
-const WALKER_COLORS = { Harshit: '#EE352E', Jay: '#00933C' }
-
-export default function DrawPanel({ draftIds, draftCount, drawStart, drawError, onUndo, onClear, onSave, onImportGpx, onCancel }) {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [note, setNote] = useState('')
-  const [walker, setWalker] = useState('Harshit')
+export default function DrawPanel({ draftIds, draftCount, drawStart, drawError, onUndo, onClear, onSave, onImportGpx, onCancel, editing }) {
+  const [date, setDate] = useState(editing?.walked_on?.slice(0, 10) || new Date().toISOString().slice(0, 10))
+  const [note, setNote] = useState(editing?.note || '')
+  const [walker, setWalker] = useState(editing?.walker || 'Harshit')
   const [saving, setSaving] = useState(false)
   const fileRef = useRef(null)
+
+  useEffect(() => {
+    setDate(editing?.walked_on?.slice(0, 10) || new Date().toISOString().slice(0, 10))
+    setNote(editing?.note || '')
+    setWalker(editing?.walker || 'Harshit')
+  }, [editing])
 
   const save = async () => {
     if (!draftIds.length) return
@@ -33,9 +37,10 @@ export default function DrawPanel({ draftIds, draftCount, drawStart, drawError, 
   return (
     <div className="draw-panel">
       <div className="draw-head">
-        <div className="draw-title"><MapPin size={16} /> Logging a walk</div>
+        <div className="draw-title"><MapPin size={16} /> {editing ? 'Editing walk' : 'Logging a walk'}</div>
         <button className="icon-btn" onClick={onCancel} title="Cancel"><X size={16} /></button>
       </div>
+      {editing && <p className="draw-hint">Update the date, notes, or redraw the route, then save your changes.</p>}
       <p className="draw-hint">
         {drawStart
           ? draftIds.length
@@ -70,7 +75,7 @@ export default function DrawPanel({ draftIds, draftCount, drawStart, drawError, 
             role="radio"
             aria-checked={walker === w}
             className={`segmented-btn${walker === w ? ' active' : ''}`}
-            style={walker === w ? { color: WALKER_COLORS[w] } : undefined}
+            style={walker === w ? { color: WALKER_COLOR } : undefined}
             onClick={() => setWalker(w)}
           >
             {w}
@@ -86,7 +91,7 @@ export default function DrawPanel({ draftIds, draftCount, drawStart, drawError, 
         rows={2}
       />
       <button className="btn primary" onClick={save} disabled={!draftIds.length || saving}>
-        <Check size={16} /> {saving ? 'Saving…' : 'Save walk'}
+        <Check size={16} /> {saving ? 'Saving…' : editing ? 'Save changes' : 'Save walk'}
       </button>
       <button className="btn ghost" onClick={() => fileRef.current?.click()}>
         <Upload size={15} /> Import GPX file instead
@@ -97,7 +102,7 @@ export default function DrawPanel({ draftIds, draftCount, drawStart, drawError, 
   )
 }
 
-export function WalksList({ walks, onDelete, onStartDraw }) {
+export function WalksList({ walks, onDelete, onStartDraw, onEdit, onInspect, focusId }) {
   return (
     <div className="walks-list">
       <div className="walks-head">
@@ -111,7 +116,7 @@ export function WalksList({ walks, onDelete, onStartDraw }) {
             <div className="walk-row-title">
               <span>{fmtDate(w.walked_on)}</span>
               {w.walker && (
-                <span className="walker-chip" style={{ color: WALKER_COLORS[w.walker] || '#cfd6e4' }}>
+                <span className="walker-chip" style={{ color: WALKER_COLOR }}>
                   {w.walker}
                 </span>
               )}
@@ -120,7 +125,17 @@ export function WalksList({ walks, onDelete, onStartDraw }) {
             {w.note && <div className="walk-row-note">{w.note}</div>}
             <div className="walk-row-blocks">{w.covered_edges?.length || 0} blocks</div>
           </div>
-          <button className="icon-btn danger" onClick={() => onDelete(w.id)} title="Delete walk"><Trash2 size={15} /></button>
+          <div className="walk-row-actions">
+            <button
+              className={`icon-btn${focusId === w.id ? ' active' : ''}`}
+              onClick={() => onInspect && onInspect(w)}
+              title="Show this walk on the map"
+            >
+              <Crosshair size={15} />
+            </button>
+            <button className="icon-btn" onClick={() => onEdit && onEdit(w)} title="Edit walk"><Pencil size={15} /></button>
+            <button className="icon-btn danger" onClick={() => onDelete(w.id)} title="Delete walk"><Trash2 size={15} /></button>
+          </div>
         </div>
       ))}
     </div>

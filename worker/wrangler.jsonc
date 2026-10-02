@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "manhattan-walks-api",
+  "main": "index.js",
+  "compatibility_date": "2025-06-05",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "manhattan_walks_db",
+      "database_name": "manhattan-walks-db",
+      "database_id": "4bb635aa-a85b-412e-b262-5758b88cd4e6"
+    }
+  ]
+}

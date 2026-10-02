@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ArrowLeft, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, Trash2, Crosshair } from 'lucide-react'
+import { WALKER_COLOR } from '../lib/walkers'
 
 function fmtDate(iso) {
   if (!iso) return 'date unknown'
@@ -7,17 +8,15 @@ function fmtDate(iso) {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-const WALKER_COLORS = { Harshit: '#ff9f1c', Jay: '#8ad6bf', Both: '#a195ff' }
-
 function WalkerChip({ walker }) {
   return (
-    <span className="walker-chip" style={{ color: WALKER_COLORS[walker] || '#cfd6e4' }}>
+    <span className="walker-chip" style={{ color: WALKER_COLOR }}>
       {walker}
     </span>
   )
 }
 
-export default function HistoryPage({ walks, onDelete, onBack }) {
+export default function HistoryPage({ walks, onDelete, onBack, onEdit, onInspect, focusId }) {
   const [confirmId, setConfirmId] = useState(null)
 
   const allBlocks = new Set(walks.flatMap((x) => x.covered_edges || []))
@@ -72,14 +71,24 @@ export default function HistoryPage({ walks, onDelete, onBack }) {
               </div>
               {w.note && <div className="history-row-note">{w.note}</div>}
             </div>
-            <button
-              className={`icon-btn danger${confirmId === w.id ? ' confirming' : ''}`}
-              onClick={() => doDelete(w)}
-              title="Delete walk"
-            >
-              <Trash2 size={15} />
-              {confirmId === w.id && <span className="confirm-label">Sure?</span>}
-            </button>
+            <div className="history-row-actions">
+              <button
+                className={`icon-btn${focusId === w.id ? ' active' : ''}`}
+                onClick={() => onInspect && onInspect(w)}
+                title="Show this walk on the map"
+              >
+                <Crosshair size={15} />
+              </button>
+              <button className="icon-btn" onClick={() => onEdit && onEdit(w)} title="Edit walk"><Pencil size={15} /></button>
+              <button
+                className={`icon-btn danger${confirmId === w.id ? ' confirming' : ''}`}
+                onClick={() => doDelete(w)}
+                title="Delete walk"
+              >
+                <Trash2 size={15} />
+                {confirmId === w.id && <span className="confirm-label">Sure?</span>}
+              </button>
+            </div>
           </li>
         ))}
       </ul>

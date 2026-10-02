@@ -17,6 +17,7 @@
   --purple: #B933AD;
   --red: #EE352E;
   --blue: #0039A6;
+  --blue-bright: #1F6FEB;
   --font: 'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif;
   --radius-lg: 18px;
   --radius: 12px;
@@ -368,6 +369,13 @@ body {
 }
 .walk-row-blocks { font-size: 0.7rem; color: var(--text-subtle); }
 
+.walk-row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
 .walker-chip {
   font-size: 0.68rem;
   font-weight: 700;
@@ -397,6 +405,39 @@ body {
 }
 .icon-btn:hover { color: var(--text); border-color: var(--border-strong); background: var(--card-hover); }
 .icon-btn.danger:hover { color: var(--red); border-color: var(--red); }
+.icon-btn.active {
+  color: var(--blue-bright);
+  border-color: var(--blue-bright);
+  background: rgba(31, 111, 235, 0.14);
+}
+
+/* Single-walk inspect banner */
+.focus-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  background: var(--card);
+  border: 1px solid var(--blue-bright);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.6rem 0.5rem 0.9rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  max-width: min(92%, 460px);
+}
+.focus-banner-main { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.focus-banner-main strong { font-size: 0.82rem; }
+.focus-banner-main span {
+  font-size: 0.72rem;
+  color: var(--text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.focus-banner .btn { flex: 0 0 auto; white-space: nowrap; }
 .icon-btn.confirming { border-color: var(--red); color: var(--red); background: rgba(224, 82, 82, 0.12); width: auto; padding: 0 0.6rem; gap: 0.3rem; }
 .confirm-label { font-size: 0.7rem; font-weight: 700; }
 
@@ -648,6 +689,13 @@ input[type='date'].field { color-scheme: dark; }
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.history-row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex-shrink: 0;
 }
 
 /* ---------- map error ---------- */

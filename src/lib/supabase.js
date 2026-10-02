@@ -1,29 +1,39 @@
-import { createClient } from '@supabase/supabase-js'
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config'
+import { API_BASE_URL } from '../config'
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+function authHeaders() {
+  const token = import.meta.env.VITE_API_TOKEN
+  return token ? { 'X-Auth-Token': token } : {}
+}
+
+async function request(path, options = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    ...options,
+  })
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`
+    try {
+      const body = await res.json()
+      if (body?.error) message = body.error
+    } catch { /* ignore */ }
+    throw new Error(message)
+  }
+  return res.json()
+}
 
 export async function fetchWalks() {
-  if (!SUPABASE_URL) return []
-  const { data, error } = await supabase
-    .from('walks')
-    .select('*')
-    .order('walked_on', { ascending: false })
-  if (error) throw new Error(error.message)
-  return data || []
+  return request('/walks')
 }
 
 export async function insertWalk(walk) {
-  const { data, error } = await supabase
-    .from('walks')
-    .insert(walk)
-    .select()
-    .single()
-  if (error) throw new Error(error.message)
-  return data
+  return request('/walks', { method: 'POST', body: JSON.stringify(walk) })
+}
+
+export async function updateWalk(id, changes) {
+  return request(`/walks?id=${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(changes) })
 }
 
 export async function deleteWalk(id) {
-  const { error } = await supabase.from('walks').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  await request(`/walks?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
 }

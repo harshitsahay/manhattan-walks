@@ -1,12 +1,16 @@
 import { useState } from 'react'
 import { Lock } from 'lucide-react'
 
-// Change the password here. Rebuild + redeploy after changing.
-const APP_PASSWORD = 'walknyc2026'
+/* Set VITE_APP_PASSWORD in .env (git-ignored) to show the gate.
+   Left unset, the app opens straight away.
+   NOTE: this is a speed bump, not security. Anything in the browser bundle is
+   public. The real lock on the data is the API token in worker/index.js. */
+const APP_PASSWORD = import.meta.env.VITE_APP_PASSWORD || ''
 const STORAGE_KEY = 'manhattan_walks_unlocked'
 
 export default function PasswordGate({ children }) {
   const [unlocked, setUnlocked] = useState(() => {
+    if (!APP_PASSWORD) return true
     try {
       return sessionStorage.getItem(STORAGE_KEY) === '1'
     } catch {
@@ -15,6 +19,8 @@ export default function PasswordGate({ children }) {
   })
   const [value, setValue] = useState('')
   const [error, setError] = useState(false)
+
+  if (unlocked) return children
 
   const unlock = () => {
     if (value === APP_PASSWORD) {
@@ -27,8 +33,6 @@ export default function PasswordGate({ children }) {
       setValue('')
     }
   }
-
-  if (unlocked) return children
 
   return (
     <div className="gate">

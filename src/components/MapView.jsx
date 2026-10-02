@@ -5,21 +5,29 @@ import ErrorBoundary from './ErrorBoundary'
 import SearchBox from './SearchBox'
 import { getSegment, getStreetFeatures } from '../lib/streets'
 import { loadPlaces, PLACE_COLORS } from '../lib/places'
+import { WALKER_COLOR } from '../lib/walkers'
 
 const MANHATTAN_BOUNDS = [[-74.06, 40.68], [-73.88, 40.88]]
+/* Light raster basemap (OSM standard tiles) — no API key, light on WebGL.
+   Glyphs served by OpenFreeMap so the custom symbol label layers keep rendering. */
 const MAP_STYLE = {
   version: 8,
-  glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
+  glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
   sources: {
-    basemap: {
+    'basemap-raster': {
       type: 'raster',
-      tiles: ['https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'],
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
       tileSize: 256,
-      attribution: '© OpenStreetMap contributors © CARTO',
+      maxzoom: 19,
+      attribution: '© OpenStreetMap contributors',
     },
   },
   layers: [
-    { id: 'basemap', type: 'raster', source: 'basemap' },
+    {
+      id: 'basemap-raster',
+      type: 'raster',
+      source: 'basemap-raster',
+    },
   ],
 }
 
@@ -47,11 +55,9 @@ const MTA = {
   gray: '#6E6E6E',
   casing: '#0D0F14',
 }
-const WALKER_LINE_COLOR = ['match', ['get', 'walker'],
-  'Jay', MTA.green,
-  MTA.red]
+const WALKER_LINE_COLOR = WALKER_COLOR
 
-function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPolyline, routePoints, walks, mode, onMapClick, drawStart }) {
+function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPolyline, routePoints, walks, mode, onMapClick, drawStart, focusWalk, onExitFocus }) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const markerRef = useRef(null)
@@ -84,6 +90,7 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPoly
       map.getCanvas().style.cursor = mode === 'draw' ? 'crosshair' : ''
     })
     mapRef.current = map
+    if (import.meta.env.DEV) window.__map = map
     return () => map.remove()
   }, [])
 
@@ -162,6 +169,19 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPoly
     map.setPaintProperty('routes', 'line-opacity', 0.45)
     map.setPaintProperty('routes', 'line-width', 2)
 
+    map.addSource('focus-route', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+    map.addLayer({ id: 'focus-route-casing', type: 'line', source: 'focus-route' })
+    map.setPaintProperty('focus-route-casing', 'line-color', '#14161B')
+    map.setPaintProperty('focus-route-casing', 'line-opacity', 0.9)
+    map.setPaintProperty('focus-route-casing', 'line-width', 7)
+    map.setLayoutProperty('focus-route-casing', 'line-cap', 'round')
+
+    map.addLayer({ id: 'focus-route', type: 'line', source: 'focus-route' })
+    map.setPaintProperty('focus-route', 'line-color', WALKER_COLOR)
+    map.setPaintProperty('focus-route', 'line-opacity', 1)
+    map.setPaintProperty('focus-route', 'line-width', 3.4)
+    map.setLayoutProperty('focus-route', 'line-cap', 'round')
+
     map.addLayer({ id: 'draft-route', type: 'line', source: 'draft-route' })
     map.setPaintProperty('draft-route', 'line-color', MTA.orange)
     map.setPaintProperty('draft-route', 'line-opacity', 0.9)
@@ -207,7 +227,7 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPoly
       layout: {
         'text-field': ['get', 'name'],
         'text-size': 10.5,
-        'text-font': ['Open Sans Semibold'],
+        'text-font': ['Noto Sans Bold'],
         'text-letter-spacing': 0.03,
       },
       paint: {
@@ -230,7 +250,7 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPoly
       layout: {
         'text-field': ['get', 'name'],
         'text-size': 10.5,
-        'text-font': ['Open Sans Regular'],
+        'text-font': ['Noto Sans Regular'],
         'text-offset': [0, 1.1],
         'text-anchor': 'top',
       },
@@ -266,9 +286,10 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPoly
     const filter = ids.length
       ? ['in', ['get', 'id'], ['literal', ids]]
       : noMatchFilter
+    if (focusWalk) return
     map.setFilter('streets-covered', filter)
     map.setFilter('streets-covered-casing', filter)
-  }, [coveredIds])
+  }, [coveredIds, focusWalk])
 
   useEffect(() => {
     const map = mapRef.current
@@ -289,7 +310,7 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPoly
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !map.getSource('routes')) return
+    if (!map || !map.getSource('routes') || focusWalk) return
     const features = walks.map((w) => {
       const coords = Array.isArray(w.polyline) && w.polyline[0] && Array.isArray(w.polyline[0])
         ? toLngLat(w.polyline)
@@ -303,7 +324,65 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPoly
         : null
     }).filter(Boolean)
     map.getSource('routes').setData({ type: 'FeatureCollection', features })
-  }, [walks])
+  }, [walks, focusWalk])
+
+  /* Isolated single-walk view: frame the blocks that walk recorded, highlight
+     its exact segments, and push the rest of the map back. The view you had
+     before is restored on exit. */
+  const savedViewRef = useRef(null)
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !map.getLayer('streets-covered')) return
+    if (focusWalk) {
+      if (!savedViewRef.current) {
+        savedViewRef.current = { center: map.getCenter(), zoom: map.getZoom() }
+      }
+      const ids = focusWalk.covered_edges || []
+      const filter = ids.length ? ['in', ['get', 'id'], ['literal', ids]] : noMatchFilter
+      map.setFilter('streets-covered', filter)
+      map.setFilter('streets-covered-casing', filter)
+      map.setPaintProperty('streets-covered', 'line-color', WALKER_COLOR)
+      map.setPaintProperty('streets-covered', 'line-opacity', 1)
+      map.setPaintProperty('streets-covered', 'line-width', 4)
+      map.setPaintProperty('streets-remaining', 'line-opacity', 0.12)
+    } else {
+      map.setPaintProperty('streets-covered', 'line-color', MTA.yellow)
+      map.setPaintProperty('streets-covered', 'line-opacity', 0.95)
+      map.setPaintProperty('streets-covered', 'line-width', 2.8)
+      map.setPaintProperty('streets-remaining', 'line-opacity', 0.35)
+      map.getSource('focus-route').setData({ type: 'FeatureCollection', features: [] })
+      const saved = savedViewRef.current
+      if (saved) {
+        savedViewRef.current = null
+        map.flyTo({ center: saved.center, zoom: saved.zoom, duration: 700 })
+      }
+    }
+  }, [focusWalk])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !focusWalk || !map.getSource('focus-route')) return
+    const coords = Array.isArray(focusWalk.polyline) && Array.isArray(focusWalk.polyline[0])
+      ? toLngLat(focusWalk.polyline)
+      : []
+    map.getSource('focus-route').setData({
+      type: 'FeatureCollection',
+      features: coords.length
+        ? [{ type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }]
+        : [],
+    })
+    map.getSource('routes').setData({ type: 'FeatureCollection', features: [] })
+
+    const bounds = new maplibregl.LngLatBounds()
+    for (const id of focusWalk.covered_edges || []) {
+      const seg = getSegment(id)
+      if (!seg) continue
+      for (const [lat, lng] of seg.coords) bounds.extend([lng, lat])
+    }
+    for (const [lng, lat] of coords) bounds.extend([lng, lat])
+    if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 90, maxZoom: 16, duration: 900 })
+  }, [focusWalk])
 
   const flyTo = (lng, lat) => {
     const map = mapRef.current
@@ -321,6 +400,20 @@ function MapCanvas({ streetsReady, coveredIds, draftIds, draftFullIds, draftPoly
   return (
     <div className="map-wrap">
       <div ref={containerRef} className="map-canvas" />
+      {focusWalk && (
+        <div className="focus-banner">
+          <div className="focus-banner-main">
+            <strong>Showing one walk</strong>
+            <span>
+              {focusWalk.walked_km != null ? `${focusWalk.walked_km.toFixed(2)} km` : 'distance unknown'}
+              {' · '}
+              {(focusWalk.covered_edges || []).length} blocks
+              {focusWalk.walker ? ` · ${focusWalk.walker}` : ''}
+            </span>
+          </div>
+          <button className="btn ghost small" onClick={onExitFocus}>Back to all walks</button>
+        </div>
+      )}
       <SearchBox onSelect={flyTo} />
       <button
         className={`places-toggle${placesOn ? ' active' : ''}`}

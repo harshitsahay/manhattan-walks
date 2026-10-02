@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Map as MapIcon, History, Footprints } from 'lucide-react'
-import { fetchWalks, insertWalk, deleteWalk } from './lib/supabase'
-import { SUPABASE_URL } from './config'
+import { fetchWalks, insertWalk, updateWalk, deleteWalk } from './lib/supabase'
 import { loadStreets, snapTrace, getStreets, getSegment, nearestSegment, routeBetween } from './lib/streets'
 import { computeStats } from './lib/stats'
 import { importGpxFile } from './lib/gpx'
@@ -16,12 +15,26 @@ export default function App() {
   const [draftRoutes, setDraftRoutes] = useState([])
   const [drawStart, setDrawStart] = useState(null)
   const [drawError, setDrawError] = useState(null)
+  const [editingWalk, setEditingWalk] = useState(null)
   const [mode, setMode] = useState('view')
   const [page, setPage] = useState('map')
   const [importedKm, setImportedKm] = useState(0)
   const [importedPolyline, setImportedPolyline] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [focusId, setFocusId] = useState(null)
+
+  const refreshWalks = useCallback(async ({ silent = false } = {}) => {
+    try {
+      const data = await fetchWalks()
+      setWalks(data)
+      if (!silent) setError((e) => (e && e.startsWith('Failed to load walks') ? null : e))
+    } catch (e) {
+      if (!silent) setError('Failed to load walks: ' + e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     (async () => {
@@ -31,15 +44,36 @@ export default function App() {
       } catch (e) {
         setError('Failed to load street data: ' + e.message)
       }
-      try {
-        const data = await fetchWalks()
-        setWalks(data)
-      } catch (e) {
-        setError('Failed to load walks: ' + e.message)
-      } finally {
-        setLoading(false)
-      }
+      await refreshWalks()
     })()
+  }, [refreshWalks])
+
+  /* Pick up walks logged by other people: on tab focus, and on a slow poll. */
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshWalks({ silent: true })
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    const timer = setInterval(() => refreshWalks({ silent: true }), 60_000)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      clearInterval(timer)
+    }
+  }, [refreshWalks])
+
+  const focusWalk = useMemo(
+    () => (focusId ? walks.find((w) => w.id === focusId) || null : null),
+    [focusId, walks],
+  )
+
+  /* Keep the isolated view valid if that walk gets deleted. */
+  useEffect(() => {
+    if (focusId && !focusWalk) setFocusId(null)
+  }, [focusId, focusWalk])
+
+  const handleInspect = useCallback((walk) => {
+    setFocusId((prev) => (prev === walk.id ? null : walk.id))
+    setPage('map')
   }, [])
 
   const coveredIds = useMemo(() => {
@@ -109,11 +143,6 @@ export default function App() {
     setDrawError(null)
   }, [drawStart])
 
-  const handleUndo = () => {
-    const next = draftRoutes.slice(0, -1)
-    setDraftRoutes(next)
-    setDrawStart(next.length ? next[next.length - 1].end : null)
-  }
   const handleClear = () => {
     setDraftRoutes([])
     setImportedKm(0)
@@ -121,7 +150,30 @@ export default function App() {
     setDrawStart(null)
     setDrawError(null)
   }
-  const handleCancel = handleClear
+  const handleCancel = () => {
+    handleClear()
+    setEditingWalk(null)
+  }
+  const handleUndo = () => {
+    const next = draftRoutes.slice(0, -1)
+    setDraftRoutes(next)
+    setDrawStart(next.length ? next[next.length - 1].end : null)
+  }
+
+  const handleEdit = (walk) => {
+    const poly = Array.isArray(walk.polyline) && walk.polyline.length
+      ? walk.polyline.map(([lat, lng]) => [lng, lat])
+      : []
+    setDraftRoutes([{ ids: walk.covered_edges || [], fullIds: walk.covered_edges || [], polyline: poly }])
+    setImportedPolyline(null)
+    setImportedKm(0)
+    setEditingWalk(walk)
+    setDrawStart(null)
+    setDrawError(null)
+    setPage('map')
+    setMode('draw')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const startDraw = useCallback(() => {
     setMode('draw')
@@ -134,20 +186,27 @@ export default function App() {
     const polyline = importedPolyline
       ? importedPolyline
       : draftPolyline.map(([lng, lat]) => [lat, lng])
-    const saved = await insertWalk({
+    const record = {
       walked_on,
       note,
       walker: walker || 'Harshit',
       walked_km: Math.round(walkedKm * 100) / 100,
       covered_edges: draftFullIds,
       polyline,
-    })
-    setWalks((prev) => [saved, ...prev])
+    }
+    if (editingWalk) {
+      const updated = await updateWalk(editingWalk.id, record)
+      setWalks((prev) => prev.map((w) => (w.id === updated.id ? updated : w)))
+    } else {
+      const saved = await insertWalk(record)
+      setWalks((prev) => [saved, ...prev])
+    }
     setDraftRoutes([])
     setImportedKm(0)
     setImportedPolyline(null)
     setDrawStart(null)
     setDrawError(null)
+    setEditingWalk(null)
     setMode('view')
   }
 
@@ -169,6 +228,7 @@ export default function App() {
     try {
       await deleteWalk(id)
       setWalks((prev) => prev.filter((w) => w.id !== id))
+      if (editingWalk?.id === id) setEditingWalk(null)
     } catch (e) {
       setError('Delete failed: ' + e.message)
     }
@@ -206,13 +266,17 @@ export default function App() {
       </header>
 
       {error && <div className="error-banner">{error}</div>}
-      {!SUPABASE_URL && (
-        <div className="error-banner">Supabase not configured — add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.</div>
-      )}
 
       {page === 'history' && (
         <div className="history-overlay">
-          <HistoryPage walks={walks} onDelete={handleDelete} onBack={() => setPage('map')} />
+          <HistoryPage
+            walks={walks}
+            onDelete={handleDelete}
+            onEdit={handleEdit}
+            onInspect={handleInspect}
+            focusId={focusId}
+            onBack={() => setPage('map')}
+          />
         </div>
       )}
 
@@ -224,6 +288,7 @@ export default function App() {
               draftCount={draftFullIds.length}
               drawStart={drawStart}
               drawError={drawError}
+              editing={editingWalk}
               onUndo={handleUndo}
               onClear={handleClear}
               onCancel={handleCancel}
@@ -234,7 +299,14 @@ export default function App() {
             <StatsPanel stats={stats} draftCount={draftFullIds.length} />
           )}
           {mode === 'view' && (
-            <WalksList walks={walks} onDelete={handleDelete} onStartDraw={startDraw} />
+            <WalksList
+              walks={walks}
+              onDelete={handleDelete}
+              onEdit={handleEdit}
+              onStartDraw={startDraw}
+              onInspect={handleInspect}
+              focusId={focusId}
+            />
           )}
         </aside>
         <MapView
@@ -248,6 +320,8 @@ export default function App() {
           mode={mode}
           drawStart={drawStart}
           onMapClick={handleMapClick}
+          focusWalk={focusWalk}
+          onExitFocus={() => setFocusId(null)}
         />
       </div>
 
